@@ -64,6 +64,14 @@ public class Application extends ContextWrapper {
 		void onActivityStopped(Activity activity);
 		void onActivitySaveInstanceState(Activity activity, Bundle outState);
 		void onActivityDestroyed(Activity activity);
+
+		// API 29 callbacks around the lifecycle methods. AndroidX drives the activity's Lifecycle with these
+		default void onActivityPostCreated(Activity activity, Bundle savedInstanceState) {}
+		default void onActivityPostStarted(Activity activity) {}
+		default void onActivityPostResumed(Activity activity) {}
+		default void onActivityPrePaused(Activity activity) {}
+		default void onActivityPreStopped(Activity activity) {}
+		default void onActivityPreDestroyed(Activity activity) {}
 	}
 	/**
 	 * Callback interface for use with {@link Application#registerOnProvideAssistDataListener}

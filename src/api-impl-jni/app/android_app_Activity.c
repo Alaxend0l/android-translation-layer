@@ -35,6 +35,10 @@ static void activity_close(JNIEnv *env, jobject activity)
 	GtkStack *stack = GTK_STACK(gtk_window_get_child(window));
 	gtk_stack_remove(stack, decor_view);
 
+	J__Activity__dispatchActivityPreDestroyed(env, activity);
+	if ((*env)->ExceptionCheck(env))
+		(*env)->ExceptionDescribe(env);
+
 	/* -- run the activity's onDestroy -- */
 	J__Activity__onDestroy(env, activity);
 	if ((*env)->ExceptionCheck(env))
@@ -44,10 +48,17 @@ static void activity_close(JNIEnv *env, jobject activity)
 static void activity_unfocus(JNIEnv *env, jobject activity)
 {
 	if (!_GET_BOOL_FIELD(activity, "paused")) {
+		J__Activity__dispatchActivityPrePaused(env, activity);
+		if ((*env)->ExceptionCheck(env))
+			(*env)->ExceptionDescribe(env);
 		J__Activity__onPause(env, activity);
 		if ((*env)->ExceptionCheck(env))
 			(*env)->ExceptionDescribe(env);
 	}
+
+	J__Activity__dispatchActivityPreStopped(env, activity);
+	if ((*env)->ExceptionCheck(env))
+		(*env)->ExceptionDescribe(env);
 
 	J__Activity__onStop(env, activity);
 	if ((*env)->ExceptionCheck(env))
@@ -66,6 +77,9 @@ static void activity_focus(JNIEnv *env, jobject activity)
 	J__Activity__onStart(env, activity);
 	if ((*env)->ExceptionCheck(env))
 		(*env)->ExceptionDescribe(env);
+	J__Activity__dispatchActivityPostStarted(env, activity);
+	if ((*env)->ExceptionCheck(env))
+		(*env)->ExceptionDescribe(env);
 	if (_GET_BOOL_FIELD(activity, "finishing"))
 		return;
 
@@ -80,6 +94,9 @@ static void activity_focus(JNIEnv *env, jobject activity)
 		return;
 
 	J__Activity__onPostResume(env, activity);
+	if ((*env)->ExceptionCheck(env))
+		(*env)->ExceptionDescribe(env);
+	J__Activity__dispatchActivityPostResumed(env, activity);
 	if ((*env)->ExceptionCheck(env))
 		(*env)->ExceptionDescribe(env);
 	if (_GET_BOOL_FIELD(activity, "finishing"))
@@ -182,6 +199,9 @@ void activity_start(JNIEnv *env, jobject activity_object)
 	activity_current = NULL;
 	/* -- run the activity's onCreate -- */
 	J__Activity__onCreate(env, activity_object, NULL);
+	if ((*env)->ExceptionCheck(env))
+		(*env)->ExceptionDescribe(env);
+	J__Activity__dispatchActivityPostCreated(env, activity_object);
 	if ((*env)->ExceptionCheck(env))
 		(*env)->ExceptionDescribe(env);
 

@@ -601,7 +601,56 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	// we never put an activity into picture-in-picture, so this is always false
 	public boolean isInPictureInPictureMode() { return false; }
 
-	public void registerActivityLifecycleCallbacks(Application.ActivityLifecycleCallbacks callback) {}
+	private final List<Application.ActivityLifecycleCallbacks> lifecycleCallbacks = new ArrayList<>();
+
+	public void registerActivityLifecycleCallbacks(Application.ActivityLifecycleCallbacks callback) {
+		lifecycleCallbacks.add(callback);
+	}
+
+	public void unregisterActivityLifecycleCallbacks(Application.ActivityLifecycleCallbacks callback) {
+		lifecycleCallbacks.remove(callback);
+	}
+
+	private Application.ActivityLifecycleCallbacks[] getLifecycleCallbacks() {
+		return lifecycleCallbacks.toArray(new Application.ActivityLifecycleCallbacks[0]);
+	}
+
+	/* called from native code around the lifecycle methods, like the ones in AOSP's Activity */
+	@Export
+	private void dispatchActivityPostCreated() {
+		for (Application.ActivityLifecycleCallbacks callback : getLifecycleCallbacks())
+			callback.onActivityPostCreated(this, null);
+	}
+
+	@Export
+	private void dispatchActivityPostStarted() {
+		for (Application.ActivityLifecycleCallbacks callback : getLifecycleCallbacks())
+			callback.onActivityPostStarted(this);
+	}
+
+	@Export
+	private void dispatchActivityPostResumed() {
+		for (Application.ActivityLifecycleCallbacks callback : getLifecycleCallbacks())
+			callback.onActivityPostResumed(this);
+	}
+
+	@Export
+	private void dispatchActivityPrePaused() {
+		for (Application.ActivityLifecycleCallbacks callback : getLifecycleCallbacks())
+			callback.onActivityPrePaused(this);
+	}
+
+	@Export
+	private void dispatchActivityPreStopped() {
+		for (Application.ActivityLifecycleCallbacks callback : getLifecycleCallbacks())
+			callback.onActivityPreStopped(this);
+	}
+
+	@Export
+	private void dispatchActivityPreDestroyed() {
+		for (Application.ActivityLifecycleCallbacks callback : getLifecycleCallbacks())
+			callback.onActivityPreDestroyed(this);
+	}
 
 	public void setDisablePreviewScreenshots(boolean disable) {}
 	public final View requireViewById(int id) {
