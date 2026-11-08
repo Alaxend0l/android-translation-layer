@@ -2892,8 +2892,18 @@ public class View implements Drawable.Callback {
 
 	public void setZ(float z) {}
 
-	public void drawableStateChanged() {
-		if (background != null && background.isStateful() && background.setState(getDrawableState()))
+	/* Copyright (C) 2006 The Android Open Source Project */
+	protected void drawableStateChanged() {
+		final int[] state = getDrawableState();
+		boolean changed = false;
+
+		final Drawable bg = background;
+		if (bg != null && bg.isStateful()) {
+			changed |= bg.setState(state);
+		}
+
+		if (changed) {
 			invalidate();
+		}
 	}
 }

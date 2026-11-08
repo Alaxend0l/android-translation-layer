@@ -542,6 +542,20 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 
 	@Override
 	/* Copyright (C) 2006 The Android Open Source Project */
+	protected void drawableStateChanged() {
+		super.drawableStateChanged();
+
+		if (children == null)
+			return;
+		for (View child : children) {
+			if (child.isDuplicateParentStateEnabled()) {
+				child.refreshDrawableState();
+			}
+		}
+	}
+
+	@Override
+	/* Copyright (C) 2006 The Android Open Source Project */
 	public void dispatchSetSelected(boolean selected) {
 		if (children == null)
 			return;
