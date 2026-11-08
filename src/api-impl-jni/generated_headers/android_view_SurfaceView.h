@@ -213,6 +213,8 @@ extern "C" {
 #define android_view_SurfaceView_TEXT_DIRECTION_RTL 4L
 #undef android_view_SurfaceView_PFLAG_SELECTED
 #define android_view_SurfaceView_PFLAG_SELECTED 4L
+#undef android_view_SurfaceView_PFLAG_DRAWABLE_STATE_DIRTY
+#define android_view_SurfaceView_PFLAG_DRAWABLE_STATE_DIRTY 1024L
 #undef android_view_SurfaceView_PFLAG_PRESSED
 #define android_view_SurfaceView_PFLAG_PRESSED 16384L
 #undef android_view_SurfaceView_PFLAG_HOVERED

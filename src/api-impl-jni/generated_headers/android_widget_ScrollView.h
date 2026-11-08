@@ -213,6 +213,8 @@ extern "C" {
 #define android_widget_ScrollView_TEXT_DIRECTION_RTL 4L
 #undef android_widget_ScrollView_PFLAG_SELECTED
 #define android_widget_ScrollView_PFLAG_SELECTED 4L
+#undef android_widget_ScrollView_PFLAG_DRAWABLE_STATE_DIRTY
+#define android_widget_ScrollView_PFLAG_DRAWABLE_STATE_DIRTY 1024L
 #undef android_widget_ScrollView_PFLAG_PRESSED
 #define android_widget_ScrollView_PFLAG_PRESSED 16384L
 #undef android_widget_ScrollView_PFLAG_HOVERED

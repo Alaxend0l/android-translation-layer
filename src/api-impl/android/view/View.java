@@ -36,6 +36,7 @@ import android.util.LayoutDirection;
 import android.util.Property;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.util.StateSet;
 import android.util.TypedValue;
 import android.view.WindowInsets;
 import android.view.animation.Animation;
@@ -961,10 +962,13 @@ public class View implements Drawable.Callback {
 	private int visibility = View.VISIBLE;
 	private float alpha = 1.0f;
 	private static final int PFLAG_SELECTED = 0x00000004;
+	private static final int PFLAG_DRAWABLE_STATE_DIRTY = 0x00000400;
 	private static final int PFLAG_PRESSED = 0x00004000;
 	private static final int PFLAG_HOVERED = 0x10000000;
 	private static final int PFLAG_ACTIVATED = 0x40000000;
 	private int privateFlags;
+	private int[] drawableState;
+	private boolean duplicateParentState = false;
 
 	private Drawable background;
 	private int backgroundTint = 0;
@@ -1140,16 +1144,60 @@ public class View implements Drawable.Callback {
 			int resId = a.getResourceId(com.android.internal.R.styleable.View_stateListAnimator, 0);
 			setStateListAnimator(AnimatorInflater.loadStateListAnimator(context, resId));
 		}
+		duplicateParentState = a.getBoolean(com.android.internal.R.styleable.View_duplicateParentState, false);
 		a.recycle();
-		onCreateDrawableState(0);
 	}
 
+	/* Copyright (C) 2006 The Android Open Source Project */
 	protected int[] onCreateDrawableState(int extraSpace) {
-		return new int[0];
+		if (duplicateParentState && parent instanceof View) {
+			return ((View)parent).onCreateDrawableState(extraSpace);
+		}
+
+		int[] drawableState;
+
+		int viewStateIndex = 0;
+		if (isPressed())
+			viewStateIndex |= StateSet.VIEW_STATE_PRESSED;
+		if (isEnabled())
+			viewStateIndex |= StateSet.VIEW_STATE_ENABLED;
+		if (isFocused())
+			viewStateIndex |= StateSet.VIEW_STATE_FOCUSED;
+		if (isSelected())
+			viewStateIndex |= StateSet.VIEW_STATE_SELECTED;
+		if (hasWindowFocus())
+			viewStateIndex |= StateSet.VIEW_STATE_WINDOW_FOCUSED;
+		if (isActivated())
+			viewStateIndex |= StateSet.VIEW_STATE_ACTIVATED;
+		if (isHovered())
+			viewStateIndex |= StateSet.VIEW_STATE_HOVERED;
+
+		drawableState = StateSet.get(viewStateIndex);
+
+		if (extraSpace == 0) {
+			return drawableState;
+		}
+
+		final int[] fullState;
+		if (drawableState != null) {
+			fullState = new int[drawableState.length + extraSpace];
+			System.arraycopy(drawableState, 0, fullState, 0, drawableState.length);
+		} else {
+			fullState = new int[extraSpace];
+		}
+
+		return fullState;
 	}
 
-	protected static int[] mergeDrawableStates(int[] curState, int[] newState) {
-		return new int[0];
+	/* Copyright (C) 2006 The Android Open Source Project */
+	protected static int[] mergeDrawableStates(int[] baseState, int[] additionalState) {
+		final int N = baseState.length;
+		int i = N - 1;
+		while (i >= 0 && baseState[i] == 0) {
+			i--;
+		}
+		System.arraycopy(additionalState, 0, baseState, i + 1, additionalState.length);
+		return baseState;
 	}
 
 	public View findViewById(int id) {
@@ -1683,6 +1731,7 @@ public class View implements Drawable.Callback {
 	}
 
 	public void refreshDrawableState() {
+		privateFlags |= PFLAG_DRAWABLE_STATE_DIRTY;
 		drawableStateChanged();
 	}
 
@@ -1703,8 +1752,11 @@ public class View implements Drawable.Callback {
 	}
 
 	public void setEnabled(boolean enabled) {
+		if (atl_enabled == enabled)
+			return;
 		atl_enabled = enabled;
 		native_setVisibility(widget, visibility, alpha, atl_enabled);
+		refreshDrawableState();
 	}
 
 	public CharSequence getContentDescription() {
@@ -2025,13 +2077,15 @@ public class View implements Drawable.Callback {
 		}
 	}
 
+	/* Copyright (C) 2006 The Android Open Source Project */
 	public final int[] getDrawableState() {
-		int[] state = new int[2];
-		state[0] = R.attr.state_enabled;
-		if (isPressed()) {
-			state[1] = R.attr.state_pressed;
+		if ((drawableState != null) && ((privateFlags & PFLAG_DRAWABLE_STATE_DIRTY) == 0)) {
+			return drawableState;
+		} else {
+			drawableState = onCreateDrawableState(0);
+			privateFlags &= ~PFLAG_DRAWABLE_STATE_DIRTY;
+			return drawableState;
 		}
-		return state;
 	}
 
 	public float getRotation() { return 0.f; }
@@ -2150,7 +2204,9 @@ public class View implements Drawable.Callback {
 
 	public void saveHierarchyState(SparseArray<Parcelable> array) {}
 
-	public void setDuplicateParentStateEnabled(boolean enabled) {}
+	public void setDuplicateParentStateEnabled(boolean enabled) {
+		duplicateParentState = enabled;
+	}
 
 	@Export
 	public boolean performClick() {
@@ -2670,7 +2726,7 @@ public class View implements Drawable.Callback {
 
 	public WindowInsets computeSystemWindowInsets(WindowInsets insets, Rect contentInsets) { return insets; }
 
-	public boolean isDuplicateParentStateEnabled() { return false; }
+	public boolean isDuplicateParentStateEnabled() { return duplicateParentState; }
 
 	public void setBackgroundTintMode(PorterDuff.Mode tintMode) {}
 
