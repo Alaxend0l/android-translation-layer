@@ -960,7 +960,12 @@ public class View implements Drawable.Callback {
 
 	private int visibility = View.VISIBLE;
 	private float alpha = 1.0f;
-	private boolean pressed = false;
+	private static final int PFLAG_SELECTED = 0x00000004;
+	private static final int PFLAG_PRESSED = 0x00004000;
+	private static final int PFLAG_HOVERED = 0x10000000;
+	private static final int PFLAG_ACTIVATED = 0x40000000;
+	private int privateFlags;
+
 	private Drawable background;
 	private int backgroundTint = 0;
 	private int mForegroundGravity = Gravity.START | Gravity.TOP;
@@ -1397,16 +1402,93 @@ public class View implements Drawable.Callback {
 			native_measure(widget, widthMeasureSpec, heightMeasureSpec);
 	}
 
+	/* Copyright (C) 2006 The Android Open Source Project */
 	public void setPressed(boolean pressed) {
-		Slog.w(TAG, "calling setPressed on " + this + " with value: " + pressed);
-		if (this.pressed != pressed) {
-			this.pressed = pressed;
-			if (background != null && background.isStateful())
-				background.setState(getDrawableState());
+		final boolean needsRefresh = pressed != ((privateFlags & PFLAG_PRESSED) == PFLAG_PRESSED);
+
+		if (pressed) {
+			privateFlags |= PFLAG_PRESSED;
+		} else {
+			privateFlags &= ~PFLAG_PRESSED;
+		}
+
+		if (needsRefresh) {
+			refreshDrawableState();
+		}
+		dispatchSetPressed(pressed);
+	}
+
+	protected void dispatchSetPressed(boolean pressed) {}
+
+	public boolean isPressed() {
+		return (privateFlags & PFLAG_PRESSED) == PFLAG_PRESSED;
+	}
+
+	/* Copyright (C) 2006 The Android Open Source Project */
+	private void resetPressedState() {
+		if (!isEnabled())
+			return;
+
+		if (isPressed())
+			setPressed(false);
+	}
+
+	/* Copyright (C) 2006 The Android Open Source Project */
+	public void setSelected(boolean selected) {
+		if (((privateFlags & PFLAG_SELECTED) != 0) != selected) {
+			privateFlags = (privateFlags & ~PFLAG_SELECTED) | (selected ? PFLAG_SELECTED : 0);
+			if (!selected)
+				resetPressedState();
+			invalidate();
+			refreshDrawableState();
+			dispatchSetSelected(selected);
 		}
 	}
 
-	public void setSelected(boolean selected) {}
+	protected void dispatchSetSelected(boolean selected) {}
+
+	public boolean isSelected() {
+		return (privateFlags & PFLAG_SELECTED) != 0;
+	}
+
+	/* Copyright (C) 2006 The Android Open Source Project */
+	public void setActivated(boolean activated) {
+		if (((privateFlags & PFLAG_ACTIVATED) != 0) != activated) {
+			privateFlags = (privateFlags & ~PFLAG_ACTIVATED) | (activated ? PFLAG_ACTIVATED : 0);
+			invalidate();
+			refreshDrawableState();
+			dispatchSetActivated(activated);
+		}
+	}
+
+	protected void dispatchSetActivated(boolean activated) {}
+
+	public boolean isActivated() {
+		return (privateFlags & PFLAG_ACTIVATED) != 0;
+	}
+
+	/* Copyright (C) 2006 The Android Open Source Project */
+	public void setHovered(boolean hovered) {
+		if (hovered) {
+			if ((privateFlags & PFLAG_HOVERED) == 0) {
+				privateFlags |= PFLAG_HOVERED;
+				refreshDrawableState();
+				onHoverChanged(true);
+			}
+		} else {
+			if ((privateFlags & PFLAG_HOVERED) != 0) {
+				privateFlags &= ~PFLAG_HOVERED;
+				refreshDrawableState();
+				onHoverChanged(false);
+			}
+		}
+	}
+
+	public void onHoverChanged(boolean hovered) {}
+
+	public boolean isHovered() {
+		return (privateFlags & PFLAG_HOVERED) != 0;
+	}
 
 	public native Window native_get_window(long widget);
 	public ViewTreeObserver getViewTreeObserver() {
@@ -1601,6 +1683,7 @@ public class View implements Drawable.Callback {
 	}
 
 	public void refreshDrawableState() {
+		drawableStateChanged();
 	}
 
 	public void setDescendantFocusability(int value) {}
@@ -1919,8 +2002,6 @@ public class View implements Drawable.Callback {
 			on_layout_change_listeners.remove(listener);
 	}
 
-	public boolean isSelected() { return false; }
-
 	public void sendAccessibilityEvent(int eventType) {}
 
 	public void setMinimumHeight(int minHeight) {
@@ -1929,10 +2010,6 @@ public class View implements Drawable.Callback {
 	public void setMinimumWidth(int minWidth) {
 		this.minWidth = minWidth;
 	}
-
-	public void setActivated(boolean activated) {}
-
-	public boolean isActivated() { return false; }
 
 	public int getVisibility() { return visibility; }
 
@@ -1951,7 +2028,7 @@ public class View implements Drawable.Callback {
 	public final int[] getDrawableState() {
 		int[] state = new int[2];
 		state[0] = R.attr.state_enabled;
-		if (pressed) {
+		if (isPressed()) {
 			state[1] = R.attr.state_pressed;
 		}
 		return state;
@@ -2395,8 +2472,6 @@ public class View implements Drawable.Callback {
 
 	public void requestFitSystemWindows() {}
 
-	public boolean isPressed() { return false; }
-
 	public native void getWindowVisibleDisplayFrame(Rect rect);
 
 	public void setRotation(float rotation) {}
@@ -2585,8 +2660,6 @@ public class View implements Drawable.Callback {
 
 	public void restoreHierarchyState(SparseArray<Parcelable> container) {}
 
-	public boolean isHovered() { return false; }
-
 	public void scrollBy(int x, int y) {
 		scrollTo(scrollX + x, scrollY + y);
 	}
@@ -2732,8 +2805,6 @@ public class View implements Drawable.Callback {
 	}
 
 	public void destroyDrawingCache() {}
-
-	public void setHovered(boolean isHovered) {}
 
 	public void setVerticalFadingEdgeEnabled(boolean verticalFadingEdgeEnabled) {}
 
