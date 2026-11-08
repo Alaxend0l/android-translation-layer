@@ -1730,6 +1730,7 @@ public class View implements Drawable.Callback {
 		return this.context;
 	}
 
+	@Export
 	public void refreshDrawableState() {
 		privateFlags |= PFLAG_DRAWABLE_STATE_DIRTY;
 		drawableStateChanged();
