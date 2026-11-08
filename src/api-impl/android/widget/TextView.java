@@ -33,6 +33,7 @@ import android.view.View;
 
 public class TextView extends View {
 	private ColorStateList colors = new ColorStateList(new int[][] {new int[0]}, new int[1]);
+	private int curTextColor;
 	private CharSequence text = "";
 	private TextPaint paint = new TextPaint();
 	private boolean include_padding = false;
@@ -146,12 +147,40 @@ public class TextView extends View {
 
 	public native final void native_setTextColor(int color);
 	public void setTextColor(int color) {
-		native_setTextColor(color);
+		colors = ColorStateList.valueOf(color);
+		updateTextColors();
 	}
 	public void setTextColor(ColorStateList colors) {
 		if (colors != null) {
 			this.colors = colors;
-			native_setTextColor(colors.getDefaultColor()); // TODO: do this properly
+			updateTextColors();
+		}
+	}
+
+	/* Copyright (C) 2006 The Android Open Source Project */
+	private void updateTextColors() {
+		final int[] drawableState = getDrawableState();
+		int color = colors.getColorForState(drawableState, 0);
+		if (color != curTextColor) {
+			curTextColor = color;
+			native_setTextColor(color);
+		}
+	}
+
+	@Override
+	/* Copyright (C) 2006 The Android Open Source Project */
+	protected void drawableStateChanged() {
+		super.drawableStateChanged();
+
+		if (colors != null && colors.isStateful()) {
+			updateTextColors();
+		}
+
+		final int[] state = getDrawableState();
+		for (Drawable dr : new Drawable[] {drawableLeft, drawableTop, drawableRight, drawableBottom}) {
+			if (dr != null && dr.isStateful() && dr.setState(state)) {
+				invalidateDrawable(dr);
+			}
 		}
 	}
 	public void setTypeface(Typeface tf, int style) {
@@ -328,7 +357,7 @@ public class TextView extends View {
 	}
 
 	public int getCurrentTextColor() {
-		return Color.CYAN;
+		return curTextColor;
 	}
 
 	public void setSingleLine(boolean singleLine) {}
