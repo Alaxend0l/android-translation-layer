@@ -21,7 +21,9 @@ JNIEXPORT jint JNICALL Java_android_media_SoundPool_nativeLoad(JNIEnv *env, jcla
 JNIEXPORT jint JNICALL Java_android_media_SoundPool_nativePlay(JNIEnv *env, jclass, jlong pool, jint soundID)
 {
 	GArray *sound_pool_array = _PTR(pool);
+	if (soundID < 0 || (guint)soundID >= sound_pool_array->len)
+		return 0;
 	GtkMediaStream *media_stream = g_array_index(sound_pool_array, GtkMediaStream *, soundID);
 	gtk_media_stream_play(media_stream);
-	return 0;
+	return soundID + 1;
 }

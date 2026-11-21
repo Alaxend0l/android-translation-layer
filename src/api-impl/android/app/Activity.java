@@ -132,6 +132,21 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return requested_orientation;
 	}
 
+	/* Lock screen and screen power belong to the host desktop: ATL has no keyguard
+	 * (KeyguardManager.isKeyguardLocked() is always false), so an activity is always
+	 * shown over "the lock screen" and never needs to turn the screen on itself. The
+	 * requests are recorded but intentionally have no further effect. */
+	private boolean showWhenLocked;
+	private boolean turnScreenOn;
+
+	public void setShowWhenLocked(boolean showWhenLocked) {
+		this.showWhenLocked = showWhenLocked;
+	}
+
+	public void setTurnScreenOn(boolean turnScreenOn) {
+		this.turnScreenOn = turnScreenOn;
+	}
+
 	public void setRequestedOrientation(int orientation) {
 		requested_orientation = orientation;
 	}
