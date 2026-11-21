@@ -39,7 +39,7 @@ public class TextView extends View {
 	private boolean include_padding = false;
 	private int break_strategy = 0 /*BREAK_STRATEGY_SIMPLE*/;
 	private int hyphenation_frequency = 0 /*HYPHENATION_FREQUENCY_NONE*/;
-	private int gravity = Gravity.CENTER;
+	private int gravity = Gravity.TOP | Gravity.START;
 
 	public TextView(Context context, AttributeSet attrs) {
 		this(context, attrs, 0);
@@ -78,6 +78,9 @@ public class TextView extends View {
 			}
 			if (a.hasValue(com.android.internal.R.styleable.TextView_textColor)) {
 				setTextColor(a.getColorStateList(com.android.internal.R.styleable.TextView_textColor));
+			}
+			if (a.hasValue(com.android.internal.R.styleable.TextView_gravity)) {
+				setGravity(a.getInt(com.android.internal.R.styleable.TextView_gravity, gravity));
 			}
 			if (a.hasValue(com.android.internal.R.styleable.TextView_textSize)) {
 				setTextSize(a.getDimensionPixelSize(com.android.internal.R.styleable.TextView_textSize, 10));
@@ -254,6 +257,45 @@ public class TextView extends View {
 	public Typeface getTypeface() { return null; }
 
 	public float getTextSize() { return 10; }
+
+	/**
+	 * Like Android: a missing horizontal part means START, a missing vertical
+	 * part TOP. Positions the text inside the view (label alignment natively).
+	 */
+	public void setGravity(int gravity) {
+		if ((gravity & Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK) == 0)
+			gravity |= Gravity.START;
+		if ((gravity & Gravity.VERTICAL_GRAVITY_MASK) == 0)
+			gravity |= Gravity.TOP;
+		this.gravity = gravity;
+		float xalign;
+		switch (Gravity.getAbsoluteGravity(gravity, getLayoutDirection()) & Gravity.HORIZONTAL_GRAVITY_MASK) {
+			case Gravity.CENTER_HORIZONTAL:
+				xalign = 0.5f;
+				break;
+			case Gravity.RIGHT:
+				xalign = 1.0f;
+				break;
+			default:
+				xalign = 0.0f;
+		}
+		float yalign;
+		switch (gravity & Gravity.VERTICAL_GRAVITY_MASK) {
+			case Gravity.CENTER_VERTICAL:
+				yalign = 0.5f;
+				break;
+			case Gravity.BOTTOM:
+				yalign = 1.0f;
+				break;
+			default:
+				yalign = 0.0f;
+		}
+		native_setAlignment(xalign, yalign);
+	}
+
+	/* positions the label of the plain TextView widget; subclasses with their own
+	 * native widget (Button, EditText, ...) are left unchanged by the native side */
+	private native void native_setAlignment(float xalign, float yalign);
 
 	public int getGravity() {
 		return gravity;
