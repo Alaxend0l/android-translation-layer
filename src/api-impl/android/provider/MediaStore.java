@@ -68,16 +68,55 @@ public class MediaStore {
 
 			public static final Uri EXTERNAL_CONTENT_URI = Uri.parse("content://media/external/images/thumbnails");
 
+			public static final int MINI_KIND = 1;
+			public static final int FULL_SCREEN_KIND = 2;
+			public static final int MICRO_KIND = 3;
+
+			/* ATL generates no thumbnails: the thumbnails table is empty (as for an item
+			 * whose thumbnail doesn't exist yet), and getThumbnail decodes the image */
 			public static Cursor queryMiniThumbnail(ContentResolver contentResolver, long id, int kind, String[] projection) {
-				return null;
+				return contentResolver.query(EXTERNAL_CONTENT_URI, projection, "image_id = ? AND kind = ?", new String[] {String.valueOf(id), String.valueOf(kind)}, null);
 			}
 
-			public static Bitmap getThumbnail(ContentResolver contentResolver, long imageId, long groupId, int kind, BitmapFactory.Options options) throws IOException {
-				Uri uri = Media.EXTERNAL_CONTENT_URI.buildUpon().appendPath(String.valueOf(imageId)).build();
-				try (ParcelFileDescriptor fd = contentResolver.openFileDescriptor(uri, "r")) {
-					return BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor(), null, options);
-				}
+			public static Cursor queryMiniThumbnails(ContentResolver contentResolver, Uri uri, int kind, String[] projection) {
+				return contentResolver.query(uri, projection, "kind = ?", new String[] {String.valueOf(kind)}, null);
 			}
+
+			public static Bitmap getThumbnail(ContentResolver contentResolver, long imageId, int kind, BitmapFactory.Options options) {
+				return decodeThumbnail(contentResolver, Media.EXTERNAL_CONTENT_URI.buildUpon().appendPath(String.valueOf(imageId)).build(), kind, options);
+			}
+
+			public static Bitmap getThumbnail(ContentResolver contentResolver, long imageId, long groupId, int kind, BitmapFactory.Options options) {
+				return getThumbnail(contentResolver, imageId, kind, options);
+			}
+
+			public static void cancelThumbnailRequest(ContentResolver contentResolver, long origId) {}
+
+			public static void cancelThumbnailRequest(ContentResolver contentResolver, long origId, long groupId) {}
+		}
+	}
+
+	/** An image decoded at about the size of a thumbnail of `kind`; null if it can't be read. */
+	static Bitmap decodeThumbnail(ContentResolver contentResolver, Uri uri, int kind, BitmapFactory.Options options) {
+		int target = kind == Images.Thumbnails.MICRO_KIND ? 96 : kind == Images.Thumbnails.FULL_SCREEN_KIND ? 1024 : 512;
+		try {
+			BitmapFactory.Options bounds = new BitmapFactory.Options();
+			bounds.inJustDecodeBounds = true;
+			try (ParcelFileDescriptor fd = contentResolver.openFileDescriptor(uri, "r")) {
+				if (fd == null)
+					return null;
+				BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor(), null, bounds);
+			}
+			BitmapFactory.Options opts = options != null ? options : new BitmapFactory.Options();
+			int sample = 1;
+			while (bounds.outWidth / (sample * 2) >= target && bounds.outHeight / (sample * 2) >= target)
+				sample *= 2;
+			opts.inSampleSize = Math.max(opts.inSampleSize, sample);
+			try (ParcelFileDescriptor fd = contentResolver.openFileDescriptor(uri, "r")) {
+				return fd == null ? null : BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor(), null, opts);
+			}
+		} catch (IOException | RuntimeException e) {
+			return null;
 		}
 	}
 
@@ -99,12 +138,23 @@ public class MediaStore {
 
 			public static final Uri EXTERNAL_CONTENT_URI = Uri.parse("content://media/external/video/thumbnails");
 
-			public static Bitmap getThumbnail(ContentResolver contentResolver, long videoId, int kind, BitmapFactory.Options options) throws IOException {
-				Uri uri = Media.EXTERNAL_CONTENT_URI.buildUpon().appendPath(String.valueOf(videoId)).build();
-				try (ParcelFileDescriptor fd = contentResolver.openFileDescriptor(uri, "r")) {
-					return BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor(), null, options);
-				}
+			public static final int MINI_KIND = 1;
+			public static final int FULL_SCREEN_KIND = 2;
+			public static final int MICRO_KIND = 3;
+
+			/* no video frame extraction in ATL yet: null, as Android returns when
+			 * no thumbnail can be made */
+			public static Bitmap getThumbnail(ContentResolver contentResolver, long videoId, int kind, BitmapFactory.Options options) {
+				return null;
 			}
+
+			public static Bitmap getThumbnail(ContentResolver contentResolver, long videoId, long groupId, int kind, BitmapFactory.Options options) {
+				return null;
+			}
+
+			public static void cancelThumbnailRequest(ContentResolver contentResolver, long origId) {}
+
+			public static void cancelThumbnailRequest(ContentResolver contentResolver, long origId, long groupId) {}
 		}
 	}
 

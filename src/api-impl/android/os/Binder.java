@@ -47,11 +47,18 @@ public class Binder implements IBinder {
 		return (mDescriptor != null && mDescriptor.equals(descriptor)) ? mOwner : null;
 	}
 
+	/* ATL_BINDER_TRACE=1: log every in-process transaction (debugging IPC-style libraries such as media3) */
+	private static final boolean TRACE = "1".equals(System.getenv("ATL_BINDER_TRACE"));
+
 	@Override
 	public final boolean transact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
 		if (data != null)
 			data.setDataPosition(0);
+		if (TRACE)
+			android.util.Slog.i("ATLBinder", "transact " + getClass().getName() + " [" + mDescriptor + "] code=" + code + " flags=" + flags + " size=" + (data != null ? data.dataSize() : -1));
 		boolean r = onTransact(code, data, reply, flags);
+		if (TRACE)
+			android.util.Slog.i("ATLBinder", "  -> " + r + " (" + getClass().getName() + " code=" + code + ")");
 		if (reply != null)
 			reply.setDataPosition(0);
 		return r;
@@ -63,8 +70,8 @@ public class Binder implements IBinder {
 
 	public static int getCallingPid() { return 0; }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof Binder;
-	}
+	/* identity, as in AOSP (Object.equals): binders identify their owners, e.g. media3
+	 * keys connected controllers by their callback binder. This used to treat every
+	 * Binder as equal, which merged media3's controllers (Fossify Music got the
+	 * notification controller's restricted commands and couldn't play). */
 }
