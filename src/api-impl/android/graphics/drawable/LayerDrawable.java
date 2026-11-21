@@ -210,6 +210,7 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 		childDrawable.mInsetR = right;
 		childDrawable.mInsetB = bottom;
 		st.mNum++;
+		st.mHaveStateful = false; // isStateful() depends on the layers
 
 		layer.setCallback(this);
 	}
@@ -476,12 +477,15 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 		return mLayerState.mAutoMirrored;
 	}*/
 
-	/*@Override
+	/* restored from the AOSP import (was commented out): a layer-list or ripple is
+	 * stateful if any layer is, and passes state to every layer, so selectors
+	 * inside them react to pressed/checked/disabled */
+	@Override
 	public boolean isStateful() {
 		return mLayerState.isStateful();
-	}*/
+	}
 
-	/*@Override
+	@Override
 	protected boolean onStateChange(int[] state) {
 		final ChildDrawable[] array = mLayerState.mChildren;
 		final int N = mLayerState.mNum;
@@ -500,7 +504,7 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 			onBoundsChange(getBounds());
 		}
 		return changed;
-	}*/
+	}
 
 	/*@Override
 	protected boolean onLevelChange(int level) {
@@ -724,21 +728,6 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 		public int getChangingConfigurations() {
 			return mChangingConfigurations;
 		}
-		/*
-		public final int getOpacity() {
-			if (mHaveOpacity) {
-				return mOpacity;
-			}
-
-			final int N = mNum;
-			int op = N > 0 ? mChildren[0].mDrawable.getOpacity() : PixelFormat.TRANSPARENT;
-			for (int i = 1; i < N; i++) {
-				op = Drawable.resolveOpacity(op, mChildren[i].mDrawable.getOpacity());
-			}
-			mOpacity = op;
-			mHaveOpacity = true;
-			return op;
-		}
 
 		public final boolean isStateful() {
 			if (mHaveStateful) {
@@ -757,6 +746,22 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 			mStateful = stateful;
 			mHaveStateful = true;
 			return stateful;
+		}
+
+		/*
+		public final int getOpacity() {
+			if (mHaveOpacity) {
+				return mOpacity;
+			}
+
+			final int N = mNum;
+			int op = N > 0 ? mChildren[0].mDrawable.getOpacity() : PixelFormat.TRANSPARENT;
+			for (int i = 1; i < N; i++) {
+				op = Drawable.resolveOpacity(op, mChildren[i].mDrawable.getOpacity());
+			}
+			mOpacity = op;
+			mHaveOpacity = true;
+			return op;
 		}
 
 		public boolean canConstantState() {

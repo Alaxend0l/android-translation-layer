@@ -16,6 +16,9 @@
 
 package android.app;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import android.content.SharedPreferences;
 import android.system.ErrnoException;
 // import android.os.FileUtils;
@@ -461,29 +464,29 @@ public final class SharedPreferencesImpl implements SharedPreferences {
 			return mcr.writeToDiskResult;
 		}
 
-		private void notifyListeners(final MemoryCommitResult mcr) { /*
-		     if (mcr.listeners == null || mcr.keysModified == null
-|| mcr.keysModified.size() == 0) {
-			 return;
-		     }
-		     if (Looper.myLooper() == Looper.getMainLooper()) {
-			 for (int i = mcr.keysModified.size() - 1; i >= 0; i--) {
-			     final String key = mcr.keysModified.get(i);
-			     for (OnSharedPreferenceChangeListener listener : mcr.listeners) {
-				 if (listener != null) {
-				     listener.onSharedPreferenceChanged(SharedPreferencesImpl.this, key);
-				 }
-			     }
-			 }
-		     } else {
-			 // Run this function on the main thread.
-			 ActivityThread.sMainThreadHandler.post(new Runnable() {
-				 public void run() {
-				     notifyListeners(mcr);
-				 }
-			     });
-		     }
-		 */
+		/* From AOSP; ATL has no ActivityThread.sMainThreadHandler, so calls from other
+		 * threads are posted to a main-looper Handler instead. Listeners run on the
+		 * main thread for each modified key, last modified first, as on Android. */
+		private void notifyListeners(final MemoryCommitResult mcr) {
+			if (mcr.listeners == null || mcr.keysModified == null || mcr.keysModified.size() == 0) {
+				return;
+			}
+			if (Looper.myLooper() == Looper.getMainLooper()) {
+				for (int i = mcr.keysModified.size() - 1; i >= 0; i--) {
+					final String key = mcr.keysModified.get(i);
+					for (OnSharedPreferenceChangeListener listener : mcr.listeners) {
+						if (listener != null) {
+							listener.onSharedPreferenceChanged(SharedPreferencesImpl.this, key);
+						}
+					}
+				}
+			} else {
+				new Handler(Looper.getMainLooper()).post(new Runnable() {
+					public void run() {
+						notifyListeners(mcr);
+					}
+				});
+			}
 		}
 	}
 
