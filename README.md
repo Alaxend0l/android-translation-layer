@@ -1,3 +1,5 @@
+> **This is an unofficial, AI-assisted hard fork of Android Translation Layer, not affiliated with upstream.** Do not report issues from this fork upstream. See [FORK.md](FORK.md).
+
 A translation layer that allows running Android apps on a Linux system
 
 ![Angry Birds 3.2.0, Worms 2 Armageddon, and Gravity Defied running side by side by side](https://gitlab.com/android_translation_layer/android_translation_layer/-/raw/master/screenshot.png)
