@@ -181,7 +181,9 @@ public class ImageView extends View {
 		ScaleType.CENTER_INSIDE,
 	};
 
-	public final void setColorFilter(int color, PorterDuff.Mode mode) {}
+	public final void setColorFilter(int color, PorterDuff.Mode mode) {
+		setColorFilter(new PorterDuffColorFilter(color, mode));
+	}
 
 	public void setImageTintList(ColorStateList tint) {
 		if (tint == null)
@@ -211,9 +213,14 @@ public class ImageView extends View {
 
 	public void setCropToPadding(boolean crop) {}
 
-	public void setColorFilter(int color) {}
+	public void setColorFilter(int color) {
+		setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
+	}
 
-	public void setColorFilter(ColorFilter cf) {}
+	public void setColorFilter(ColorFilter cf) {
+		this.colorFilter = cf;
+		setImageDrawable(drawable);
+	}
 
 	public Matrix getImageMatrix() {
 		return Matrix.IDENTITY_MATRIX;
@@ -221,6 +228,9 @@ public class ImageView extends View {
 
 	public void clearColorFilter() {
 		colorFilter = null;
+		if (drawable != null) {
+			drawable.setColorFilter(null);
+		}
 	}
 
 	@Override
