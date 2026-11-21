@@ -35,6 +35,8 @@ public class TextView extends View {
 	private ColorStateList colors = new ColorStateList(new int[][] {new int[0]}, new int[1]);
 	private int curTextColor;
 	private CharSequence text = "";
+	private int inputType = android.text.InputType.TYPE_NULL;
+	private TransformationMethod transformationMethod;
 	private TextPaint paint = new TextPaint();
 	private boolean include_padding = false;
 	private int break_strategy = 0 /*BREAK_STRATEGY_SIMPLE*/;
@@ -79,6 +81,12 @@ public class TextView extends View {
 			if (a.hasValue(com.android.internal.R.styleable.TextView_textColor)) {
 				setTextColor(a.getColorStateList(com.android.internal.R.styleable.TextView_textColor));
 			}
+			if (a.hasValue(com.android.internal.R.styleable.TextView_inputType)) {
+				setInputType(a.getInt(com.android.internal.R.styleable.TextView_inputType, android.text.InputType.TYPE_NULL));
+			}
+			if (a.getBoolean(com.android.internal.R.styleable.TextView_password, false)) {
+				setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+			}
 			if (a.hasValue(com.android.internal.R.styleable.TextView_gravity)) {
 				setGravity(a.getInt(com.android.internal.R.styleable.TextView_gravity, gravity));
 			}
@@ -117,7 +125,7 @@ public class TextView extends View {
 
 	public void setText(CharSequence text, BufferType type) {
 		this.text = text == null ? "" : text;
-		native_setText(text != null ? text.toString() : null);
+		native_setText(text != null ? displayed(text).toString() : null);
 
 		if (text instanceof android.text.Spanned)
 			native_set_markup(1);
@@ -209,7 +217,55 @@ public class TextView extends View {
 	public void setLineSpacing(float add, float mult) {}
 	public final void setLinksClickable(boolean whether) {}
 
-	public void setInputType(int type) {}
+	/* the text as shown: through the transformation method (e.g. password dots) */
+	private CharSequence displayed(CharSequence text) {
+		if (transformationMethod == null)
+			return text;
+		CharSequence shown = transformationMethod.getTransformation(text, this);
+		return shown != null ? shown : text;
+	}
+
+	private static boolean isPasswordInputType(int type) {
+		final int variation = type & (android.text.InputType.TYPE_MASK_CLASS | android.text.InputType.TYPE_MASK_VARIATION);
+		return variation == (android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+		    || variation == (android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD)
+		    || variation == (android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+	}
+
+	private static boolean isVisiblePasswordInputType(int type) {
+		final int variation = type & (android.text.InputType.TYPE_MASK_CLASS | android.text.InputType.TYPE_MASK_VARIATION);
+		return variation == (android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+	}
+
+	/**
+	 * Like AOSP: a password variation switches the transformation to
+	 * PasswordTransformationMethod; leaving it (or a visible-password variation)
+	 * removes a password transformation again ("show password" toggles).
+	 */
+	public void setInputType(int type) {
+		final boolean wasPassword = isPasswordInputType(inputType);
+		inputType = type;
+		if (isPasswordInputType(type)) {
+			setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+		} else if ((wasPassword || isVisiblePasswordInputType(type))
+		           && transformationMethod instanceof android.text.method.PasswordTransformationMethod) {
+			setTransformationMethod(null);
+		} else {
+			onInputTypeChanged();
+		}
+	}
+
+	/** hook for subclasses with their own native widget (EditText) */
+	protected void onInputTypeChanged() {}
+
+	/** hook for subclasses with their own native widget (EditText) */
+	protected void onTransformationMethodChanged() {
+		native_setText(displayed(text).toString());
+	}
+
+	protected boolean isPasswordMasked() {
+		return transformationMethod instanceof android.text.method.PasswordTransformationMethod;
+	}
 	public void setFilters(InputFilter[] filters) {}
 	public void setCursorVisible(boolean visible) {}
 	public void setImeOptions(int imeOptions) {}
@@ -226,7 +282,7 @@ public class TextView extends View {
 	public void setOnEditorActionListener(TextView.OnEditorActionListener l) {}
 
 	public TransformationMethod getTransformationMethod() {
-		return null;
+		return transformationMethod;
 	}
 
 	public void setHintTextColor(ColorStateList colorStateList) {}
@@ -347,9 +403,15 @@ public class TextView extends View {
 
 	public KeyListener getKeyListener() { return null; }
 
-	public int getInputType() { return 0; }
+	public int getInputType() { return inputType; }
 
-	public final void setTransformationMethod(TransformationMethod method) {}
+	public final void setTransformationMethod(TransformationMethod method) {
+		if (method == transformationMethod)
+			return;
+		transformationMethod = method;
+		onTransformationMethodChanged();
+		onInputTypeChanged();
+	}
 
 	public InputFilter[] getFilters() { return new InputFilter[0]; }
 
@@ -454,7 +516,10 @@ public class TextView extends View {
 
 	public int getExtendedPaddingTop() { return 0; }
 
-	public void setRawInputType(int type) {}
+	public void setRawInputType(int type) {
+		inputType = type;
+		onInputTypeChanged();
+	}
 
 	public TextUtils.TruncateAt getEllipsize() { return null; }
 

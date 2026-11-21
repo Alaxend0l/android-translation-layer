@@ -73,6 +73,17 @@ JNIEXPORT void JNICALL Java_android_widget_EditText_native_1removeTextChangedLis
 #define IME_ACTION_SEARCH 3
 #define KEYCODE_ENTER     66
 
+JNIEXPORT void JNICALL Java_android_widget_EditText_native_1setPasswordMode(JNIEnv *env, jobject this, jlong widget_ptr, jboolean masked, jboolean numeric)
+{
+	GtkText *gtk_text = GTK_TEXT(_PTR(widget_ptr));
+	gtk_text_set_visibility(gtk_text, !masked);
+	GtkInputPurpose purpose = gtk_text_get_input_purpose(gtk_text);
+	if (masked)
+		gtk_text_set_input_purpose(gtk_text, numeric ? GTK_INPUT_PURPOSE_PIN : GTK_INPUT_PURPOSE_PASSWORD);
+	else if (purpose == GTK_INPUT_PURPOSE_PASSWORD || purpose == GTK_INPUT_PURPOSE_PIN)
+		gtk_text_set_input_purpose(gtk_text, GTK_INPUT_PURPOSE_FREE_FORM);
+}
+
 static void on_activate(GtkText *gtk_text, struct changed_callback_data *d)
 {
 	JNIEnv *env = get_jni_env();
