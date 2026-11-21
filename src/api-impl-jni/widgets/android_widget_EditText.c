@@ -70,8 +70,13 @@ JNIEXPORT void JNICALL Java_android_widget_EditText_native_1removeTextChangedLis
 	g_object_set_data(G_OBJECT(gtk_text), "text_changed_listeners", listeners);
 }
 
-#define IME_ACTION_SEARCH 3
-#define KEYCODE_ENTER     66
+#define KEY_ACTION_DOWN 0  /* android.view.KeyEvent.ACTION_DOWN */
+#define KEYCODE_ENTER   66
+
+JNIEXPORT void JNICALL Java_android_widget_EditText_native_1setImeAction(JNIEnv *env, jobject this, jlong widget_ptr, jint action)
+{
+	g_object_set_data(G_OBJECT(_PTR(widget_ptr)), "ime_action", GINT_TO_POINTER(action));
+}
 
 JNIEXPORT void JNICALL Java_android_widget_EditText_native_1setPasswordMode(JNIEnv *env, jobject this, jlong widget_ptr, jboolean masked, jboolean numeric)
 {
@@ -88,8 +93,11 @@ static void on_activate(GtkText *gtk_text, struct changed_callback_data *d)
 {
 	JNIEnv *env = get_jni_env();
 
-	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, IME_ACTION_SEARCH, KEYCODE_ENTER, 0, 0);
-	J__TextView__OnEditorActionListener__onEditorAction(env, d->listener, d->this, 0, key_event);
+	/* Enter: the view's IME action (android:imeOptions / setImeOptions) as actionId,
+	 * IME_NULL (0) if none, and the Enter key-down event, as Android delivers it */
+	jint action = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(gtk_text), "ime_action"));
+	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, KEY_ACTION_DOWN, KEYCODE_ENTER, 0, 0);
+	J__TextView__OnEditorActionListener__onEditorAction(env, d->listener, d->this, action, key_event);
 	ATL_CALLBACK_CHECK(env);
 }
 

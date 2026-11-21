@@ -293,6 +293,14 @@ JNIEXPORT void JNICALL Java_android_widget_EditText_native_1setHint
 JNIEXPORT jobject JNICALL Java_android_widget_EditText_native_1getHint
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     android_widget_EditText
+ * Method:    native_setImeAction
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_android_widget_EditText_native_1setImeAction
+  (JNIEnv *, jobject, jlong, jint);
+
 #ifdef __cplusplus
 }
 #endif

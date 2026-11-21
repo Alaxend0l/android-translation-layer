@@ -49,8 +49,39 @@ public abstract class CompoundButton extends Button implements Checkable {
 
 	public native void setOnCheckedChangeListener(OnCheckedChangeListener listener);
 
+	private OnClickListener clickListener;
+	private boolean settingChecked; // setChecked() from code: not a click
+	protected CharSequence label = "";
+
+	/* Checked state from code. Like Android, only user clicks reach the
+	 * OnClickListener, not setChecked()/toggle(). */
 	@Override
-	public native void setChecked(boolean checked);
+	public void setChecked(boolean checked) {
+		settingChecked = true;
+		try {
+			native_setChecked(checked);
+		} finally {
+			settingChecked = false;
+		}
+	}
+
+	protected native void native_setChecked(boolean checked);
+
+	/* called by the native widget on every checked-state change */
+	@Export
+	protected void onNativeCheckedStateChanged() {
+		refreshDrawableState();
+		if (!settingChecked && clickListener != null)
+			clickListener.onClick(this);
+	}
+
+	@Override
+	public boolean performClick() {
+		toggle();
+		if (clickListener != null)
+			clickListener.onClick(this);
+		return true;
+	}
 
 	@Override
 	public native boolean isChecked();
@@ -81,16 +112,27 @@ public abstract class CompoundButton extends Button implements Checkable {
 		setChecked(!isChecked());
 	}
 
-	// following methods are overridden to prevent calling incompatible methods from superclasses
+	/* stored here, not in View: the native widget handles the click itself and
+	 * reports it through onNativeCheckedStateChanged() */
 	@Override
-	public void setOnClickListener(final OnClickListener l) {}
+	public void setOnClickListener(final OnClickListener l) {
+		clickListener = l;
+	}
+
+	// following methods are overridden to prevent calling incompatible methods from superclasses
 	@Override
 	public void setTextColor(int color) {}
 	@Override
 	public void setTextSize(float size) {}
 	@Override
 	public CharSequence getText() {
-		return "FIXME CompoundButton.getText()";
+		return label;
+	}
+
+	@Override
+	public void setText(CharSequence text) {
+		label = text == null ? "" : text;
+		native_setText(widget, label.toString());
 	}
 
 	public void setButtonTintList(ColorStateList list) {

@@ -36,6 +36,7 @@ public class TextView extends View {
 	private int curTextColor;
 	private CharSequence text = "";
 	private int inputType = android.text.InputType.TYPE_NULL;
+	private int imeOptions = 0; // EditorInfo.IME_NULL
 	private TransformationMethod transformationMethod;
 	private TextPaint paint = new TextPaint();
 	private boolean include_padding = false;
@@ -80,6 +81,9 @@ public class TextView extends View {
 			}
 			if (a.hasValue(com.android.internal.R.styleable.TextView_textColor)) {
 				setTextColor(a.getColorStateList(com.android.internal.R.styleable.TextView_textColor));
+			}
+			if (a.hasValue(com.android.internal.R.styleable.TextView_imeOptions)) {
+				setImeOptions(a.getInt(com.android.internal.R.styleable.TextView_imeOptions, 0));
 			}
 			if (a.hasValue(com.android.internal.R.styleable.TextView_inputType)) {
 				setInputType(a.getInt(com.android.internal.R.styleable.TextView_inputType, android.text.InputType.TYPE_NULL));
@@ -268,7 +272,17 @@ public class TextView extends View {
 	}
 	public void setFilters(InputFilter[] filters) {}
 	public void setCursorVisible(boolean visible) {}
-	public void setImeOptions(int imeOptions) {}
+	public void setImeOptions(int imeOptions) {
+		this.imeOptions = imeOptions;
+		onImeOptionsChanged();
+	}
+
+	public int getImeOptions() {
+		return imeOptions;
+	}
+
+	/** hook for subclasses with their own native widget (EditText) */
+	protected void onImeOptionsChanged() {}
 
 	public final ColorStateList getTextColors() { return colors; }
 	public static ColorStateList getTextColors(Context context, TypedArray attrs) { return new ColorStateList(new int[][] {new int[0]}, new int[1]); }
@@ -594,8 +608,6 @@ public class TextView extends View {
 	public int getTotalPaddingRight() { return 0; }
 
 	public int getTotalPaddingBottom() { return 0; }
-
-	public int getImeOptions() { return 0; }
 
 	public void setShadowLayer(float radius, float dx, float dy, int color) {}
 

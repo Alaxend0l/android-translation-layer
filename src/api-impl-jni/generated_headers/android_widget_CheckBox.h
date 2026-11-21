@@ -239,10 +239,10 @@ JNIEXPORT void JNICALL Java_android_widget_CheckBox_setOnCheckedChangeListener
 
 /*
  * Class:     android_widget_CheckBox
- * Method:    setChecked
+ * Method:    native_setChecked
  * Signature: (Z)V
  */
-JNIEXPORT void JNICALL Java_android_widget_CheckBox_setChecked
+JNIEXPORT void JNICALL Java_android_widget_CheckBox_native_1setChecked
   (JNIEnv *, jobject, jboolean);
 
 /*
