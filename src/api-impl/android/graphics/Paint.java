@@ -385,7 +385,28 @@ public class Paint {
 		return Join.values[native_get_stroke_join(paint)];
 	}
 
-	public Locale getTextLocale() { return Locale.getDefault(); }
+	/* text locales (as AOSP; ATL's Pango shaping doesn't use them yet) */
+	private android.os.LocaleList textLocales;
+
+	public Locale getTextLocale() {
+		return getTextLocales().get(0);
+	}
+
+	public android.os.LocaleList getTextLocales() {
+		return textLocales != null ? textLocales : android.os.LocaleList.getDefault();
+	}
+
+	public void setTextLocale(Locale locale) {
+		if (locale == null)
+			throw new IllegalArgumentException("locale cannot be null");
+		textLocales = new android.os.LocaleList(locale);
+	}
+
+	public void setTextLocales(android.os.LocaleList locales) {
+		if (locales == null || locales.isEmpty())
+			throw new IllegalArgumentException("locales cannot be null or empty");
+		textLocales = locales;
+	}
 
 	public float getLetterSpacing() { return 1.0f; }
 
