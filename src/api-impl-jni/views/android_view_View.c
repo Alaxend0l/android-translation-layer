@@ -97,8 +97,7 @@ bool view_dispatch_motionevent(JNIEnv *env, WrapperWidget *wrapper, GtkPropagati
 		if (synthetic_propagation_failed != event) { // New event. Try to handle again.
 			synthetic_propagation_failed = NULL;
 			ret = J__View__dispatchTouchEvent(env, this, motion_event);
-			if ((*env)->ExceptionCheck(env))
-				(*env)->ExceptionDescribe(env);
+			ATL_CALLBACK_CHECK(env);
 		}
 		if (synthetic_propagation_failed) {
 			// The app tried to synthetically propagate the event to a GTK widget, but that is not possible in GTK4,
@@ -126,8 +125,7 @@ bool view_dispatch_motionevent(JNIEnv *env, WrapperWidget *wrapper, GtkPropagati
 		ret = J__View__onTouchEventInternal(env, this, motion_event, (jboolean)is_synthetic);
 	}
 
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 
 	if (action == ACTION_UP || action == ACTION_CANCEL)
 		wrapper->intercepting_touch = false;
@@ -167,8 +165,7 @@ static void call_hover_callback(jobject this, int action, float x, float y, floa
 	JNIEnv *env = get_jni_env();
 	jobject motion_event = J_new__MotionEvent__single(env, SOURCE_CLASS_POINTER, action, 0, x, y, x, y);
 	J__View__dispatchHoverEvent(env, this, motion_event);
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 }
 
 static void transform_coords_to_widget_relative(GtkWidget *widget, double *x, double *y)
@@ -319,8 +316,7 @@ static void on_click(GtkGestureClick *gesture, int n_press, double x, double y, 
 
 	jboolean handled = J__View__performClick(env, wrapper->jobj);
 
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 
 	if (handled) {
 		gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);
@@ -376,8 +372,7 @@ static gboolean scroll_cb(GtkEventControllerScroll *controller, gdouble dx, gdou
 	                                                  gdk_event_get_time(event), x, y, raw_x, raw_y, dx, -dy);
 
 	gboolean ret = J__View__dispatchGenericMotionEvent(env, this, motion_event);
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 
 	// HACK: replay last hover event to work around scrolling issues in composeUI apps
 	if (wrapper->hover_x && wrapper->hover_y)
@@ -777,8 +772,7 @@ JNIEXPORT void JNICALL Java_android_view_View_native_1setBackgroundColor(JNIEnv 
 
 JNIEXPORT void JNICALL Java_android_view_View_native_1setBackgroundDrawable(JNIEnv *env, jobject this, jlong widget_ptr, jlong paintable_ptr)
 {
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 
 	GtkWidget *widget = GTK_WIDGET(_PTR(widget_ptr));
 	GdkPaintable *paintable = GDK_PAINTABLE(_PTR(paintable_ptr));
@@ -836,8 +830,7 @@ static void on_long_click(GtkGestureLongPress *gesture, double x, double y, gpoi
 
 	bool ret = J__View__performLongClick(env, wrapper->jobj, x, y);
 
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 
 	if (ret)
 		gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);

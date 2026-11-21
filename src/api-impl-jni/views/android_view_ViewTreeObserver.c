@@ -8,20 +8,14 @@ static void on_global_layout_callback(GdkFrameClock *clock, jobject view_tree_ob
 {
 	JNIEnv *env = get_jni_env();
 	J__ViewTreeObserver__dispatchOnGlobalLayout(env, view_tree_observer);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-		(*env)->ExceptionClear(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 }
 
 static void on_pre_draw_callback(GdkFrameClock *clock, jobject view_tree_observer)
 {
 	JNIEnv *env = get_jni_env();
 	J__ViewTreeObserver__dispatchOnPreDraw(env, view_tree_observer);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-		(*env)->ExceptionClear(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 }
 
 extern GtkWidget *window;

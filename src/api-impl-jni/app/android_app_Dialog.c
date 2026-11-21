@@ -30,8 +30,7 @@ static gboolean on_touch_outside(GtkEventControllerLegacy *controller, GdkEvent 
 		JNIEnv *env = get_jni_env();
 		jmethodID dismiss = _METHOD(_CLASS(outside->jobj), "dismiss", "()V");
 		(*env)->CallVoidMethod(env, outside->jobj, dismiss);
-		if ((*env)->ExceptionCheck(env))
-			(*env)->ExceptionDescribe(env);
+		ATL_CALLBACK_CHECK(env);
 		return TRUE;
 	} else {
 		return FALSE;

@@ -43,10 +43,7 @@ static void android_layout_measure(GtkLayoutManager *layout_manager, GtkWidget *
 			heightMeasureSpec = _GET_INT_FIELD(layout->view, "oldHeightMeasureSpec");
 		if (widthMeasureSpec != -1 && heightMeasureSpec != -1) {
 			J__View__measure(env, layout->view, widthMeasureSpec, heightMeasureSpec);
-			if ((*env)->ExceptionCheck(env)) {
-				(*env)->ExceptionDescribe(env);
-				(*env)->ExceptionClear(env);
-			}
+			ATL_CALLBACK_CHECK(env);
 		}
 	}
 
@@ -80,8 +77,7 @@ static void android_layout_allocate(GtkLayoutManager *layout_manager, GtkWidget 
 	}
 
 	J__View__layoutInternal(env, layout->view, width, height);
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 }
 
 static GtkSizeRequestMode android_layout_get_request_mode(GtkLayoutManager *layout_manager, GtkWidget *widget)

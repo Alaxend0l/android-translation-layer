@@ -19,6 +19,20 @@ char *get_app_data_dir();
 
 void prepare_main_looper(JNIEnv *env);
 
+/* Exceptions escaping app code that native code called (see doc/Exceptions.md).
+ * Lifecycle methods (onCreate, onResume, ...): like Android, the exception goes to the
+ * thread's uncaught-exception handlers and the process ends (exit 10); never returns
+ * if an exception was pending.
+ * Other callbacks (drawing, input, layout, popups, ...): ATL logs it with a
+ * "W/ATL: swallowed exception in <function>" marker, clears it and continues; Android
+ * would end the process here too, so the marker lets tools count these as failures.
+ * Either way the exception never stays pending into the next JNI call, which made
+ * ART's JNI checker abort the process. */
+void atl_lifecycle_exception_check(JNIEnv *env, const char *where);
+void atl_callback_exception_check(JNIEnv *env, const char *where);
+#define ATL_LIFECYCLE_CHECK(env) atl_lifecycle_exception_check(env, __func__)
+#define ATL_CALLBACK_CHECK(env) atl_callback_exception_check(env, __func__)
+
 /* we don't (currently?) install the headers for liblog */
 typedef enum {
 	LOG_ID_MAIN = 0,
