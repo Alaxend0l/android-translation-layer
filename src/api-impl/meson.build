@@ -99,6 +99,7 @@ srcs = [
 	'android/atl/ATLProvider.java',
 	'android/atl/ATLSigHelper.java',
 	'android/atl/ATLToggles.java',
+	'android/atl/ATLUncaught.java',
 	'android/atl/EarlyPackageParser.java',
 	'android/atl/annotation/Export.java',
 	'android/atl/GskCanvas.java',

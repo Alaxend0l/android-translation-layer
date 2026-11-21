@@ -34,8 +34,7 @@ static void activate_cb(GtkListView *list, guint position, gpointer user_data)
 	jobject this = g_object_get_data(G_OBJECT(list), "this");
 	jobject on_click = g_object_get_data(G_OBJECT(list), "on_click");
 	J__DialogInterface__OnClickListener__onClick(env, on_click, this, position);
-	if ((*env)->ExceptionCheck(env))
-		(*env)->ExceptionDescribe(env);
+	ATL_CALLBACK_CHECK(env);
 }
 
 JNIEXPORT void JNICALL Java_android_app_AlertDialog_nativeConstruct(JNIEnv *env, jobject this, jlong ptr, jlong button_positive_ptr, jlong button_negative_ptr, jlong button_neutral_ptr)

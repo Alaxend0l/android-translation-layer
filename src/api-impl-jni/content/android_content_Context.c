@@ -225,9 +225,7 @@ static gboolean on_new_endpoint(Connector1 *connector, GDBusMethodInvocation *in
 
 	jobject context = _GET_STATIC_OBJ_FIELD(_CACHED_CLASS(Context), "this_application", "Landroid/app/Application;");
 	J__Context__sendBroadcast(env, context, intent);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 	return TRUE;
 }
 
@@ -250,9 +248,7 @@ static gboolean on_message(Connector1 *connector, GDBusMethodInvocation *invocat
 
 	jobject context = _GET_STATIC_OBJ_FIELD(_CACHED_CLASS(Context), "this_application", "Landroid/app/Application;");
 	J__Context__sendBroadcast(env, context, intent);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 	return TRUE;
 }
 

@@ -1,6 +1,8 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <gtk/gtk.h>
 
@@ -43,6 +45,28 @@ JNIEnv *get_jni_env(void)
 JNIEnv *_gdb_get_jni_env(void)
 {
 	return get_jni_env();
+}
+
+void atl_lifecycle_exception_check(JNIEnv *env, const char *where)
+{
+	if (!(*env)->ExceptionCheck(env))
+		return;
+	jthrowable exception = (*env)->ExceptionOccurred(env);
+	(*env)->ExceptionClear(env);
+	fprintf(stderr, "E/ATL: uncaught exception escaped %s, ending the app like Android does\n", where);
+	J__ATLUncaught__dispatch(env, exception);
+	/* dispatch() ends the process; only reached if that itself failed */
+	ATL_CALLBACK_CHECK(env);
+	exit(10);
+}
+
+void atl_callback_exception_check(JNIEnv *env, const char *where)
+{
+	if (!(*env)->ExceptionCheck(env))
+		return;
+	fprintf(stderr, "W/ATL: swallowed exception in %s (logged, cleared, continuing; Android would end the app):\n", where);
+	(*env)->ExceptionDescribe(env);
+	(*env)->ExceptionClear(env);
 }
 
 void _gdb_get_java_stack_trace(void)
@@ -340,10 +364,7 @@ jobject intent_deserialize(JNIEnv *env, GVariant *variant)
 			jobject class_loader = J__Context__getClassLoader(env, _GET_STATIC_OBJ_FIELD(_CACHED_CLASS(Context), "this_application", "Landroid/app/Application;"));
 			jobject parcel = J_new__GVariantIterParcel(env, _INTPTR(&parcel_iter));
 			jobject parcelable = J__Parcel__readParcelable(env, parcel, class_loader);
-			if ((*env)->ExceptionCheck(env)) {
-				(*env)->ExceptionDescribe(env);
-				(*env)->ExceptionClear(env);
-			}
+			ATL_CALLBACK_CHECK(env);
 			J__Intent__putExtraParcelable(env, intent, _JSTRING(key), parcelable);
 			(*env)->DeleteLocalRef(env, parcelable);
 			(*env)->DeleteLocalRef(env, parcel);

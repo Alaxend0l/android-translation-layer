@@ -11,9 +11,7 @@ static void action_start_activity(GSimpleAction *action, GVariant *parameter, gp
 	jobject intent = intent_deserialize(env, parameter);
 	jobject context = _GET_STATIC_OBJ_FIELD(_CACHED_CLASS(Context), "this_application", "Landroid/app/Application;");
 	J__Context__startActivity(env, context, intent);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 }
 
 static void action_start_service(GSimpleAction *action, GVariant *parameter, gpointer user_data)
@@ -23,9 +21,7 @@ static void action_start_service(GSimpleAction *action, GVariant *parameter, gpo
 	jobject intent = intent_deserialize(env, parameter);
 	jobject context = _GET_STATIC_OBJ_FIELD(_CACHED_CLASS(Context), "this_application", "Landroid/app/Application;");
 	J__Context__startService(env, context, intent);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 }
 
 static void action_send_broadcast(GSimpleAction *action, GVariant *parameter, gpointer user_data)
@@ -35,9 +31,7 @@ static void action_send_broadcast(GSimpleAction *action, GVariant *parameter, gp
 	jobject intent = intent_deserialize(env, parameter);
 	jobject context = _GET_STATIC_OBJ_FIELD(_CACHED_CLASS(Context), "this_application", "Landroid/app/Application;");
 	J__Context__sendBroadcast(env, context, intent);
-	if ((*env)->ExceptionCheck(env)) {
-		(*env)->ExceptionDescribe(env);
-	}
+	ATL_CALLBACK_CHECK(env);
 }
 
 const GActionEntry action_entries[] = {
