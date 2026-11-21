@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <gtk/gtk.h>
 
 #include "../defines.h"
@@ -49,6 +50,17 @@ JNIEXPORT jlong JNICALL Java_android_graphics_Bitmap_native_1create_1texture(JNI
 		} else {
 			renderer = gsk_cairo_renderer_new();
 			gsk_renderer_realize(renderer, NULL, NULL);
+		}
+		/* ATL_DUMP_NODES=DIR: save each bitmap's render tree (GSK text format,
+		 * view with gtk4-rendernode-tool) to debug canvas drawing */
+		const char *dump_dir = getenv("ATL_DUMP_NODES");
+		if (dump_dir) {
+			static gint counter = 0;
+			char *path = g_strdup_printf("%s/bitmap-%04d-%s.node", dump_dir, g_atomic_int_add(&counter, 1), G_OBJECT_TYPE_NAME(renderer));
+			GBytes *bytes = gsk_render_node_serialize(node);
+			g_file_set_contents(path, g_bytes_get_data(bytes, NULL), g_bytes_get_size(bytes), NULL);
+			g_bytes_unref(bytes);
+			g_free(path);
 		}
 		texture = gsk_renderer_render_texture(renderer, node, &bounds);
 		gsk_render_node_unref(node);

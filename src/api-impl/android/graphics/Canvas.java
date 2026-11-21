@@ -456,10 +456,9 @@ public class Canvas {
 
 	public void drawRoundRect(float left, float top, float right, float bottom, float rx, float ry, Paint paint) {
 		synchronized (bitmap) {
-			if (paint.getShader() instanceof BitmapShader) {
-				BitmapShader shader = (BitmapShader)paint.getShader();
-				drawBitmap(shader.bitmap, 0, 0, paint);
-			} else if (paint.getXfermode() instanceof PorterDuffXfermode && ((PorterDuffXfermode)paint.getXfermode()).porterDuffMode == PorterDuff.Mode.CLEAR.nativeInt) {
+			// BitmapShader and other shaders are drawn natively now (was: the
+			// shader's bitmap drawn unclipped at 0,0)
+			if (paint.getXfermode() instanceof PorterDuffXfermode && ((PorterDuffXfermode)paint.getXfermode()).porterDuffMode == PorterDuff.Mode.CLEAR.nativeInt) {
 				int oldSaveCount = gsk_canvas.getSaveCount();
 				gsk_canvas.restoreToCount(1);
 				bitmap.eraseColor(0);
