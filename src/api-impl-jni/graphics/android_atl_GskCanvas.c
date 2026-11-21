@@ -46,7 +46,17 @@ JNIEXPORT void JNICALL Java_android_atl_GskCanvas_native_1drawRect(JNIEnv *env, 
 	graphene_rect_t bounds = GRAPHENE_RECT_INIT(left, top, right - left, bottom - top);
 	if (paint->use_color_filter)
 		gtk_snapshot_push_color_matrix(snapshot, &paint->color_matrix, &paint->color_offset);
-	gtk_snapshot_append_color(snapshot, &paint->color, &bounds);
+	/* honour Paint.Style like drawPath: STROKE outlines, FILL_AND_STROKE does both
+	 * (it used to always fill, so outlined rectangles came out solid) */
+	if (paint->is_fill)
+		gtk_snapshot_append_color(snapshot, &paint->color, &bounds);
+	if (paint->is_stroke) {
+		GskPathBuilder *builder = gsk_path_builder_new();
+		gsk_path_builder_add_rect(builder, &bounds);
+		GskPath *path = gsk_path_builder_free_to_path(builder);
+		gtk_snapshot_append_stroke(snapshot, path, paint->gsk_stroke, &paint->color);
+		gsk_path_unref(path);
+	}
 	if (paint->use_color_filter)
 		gtk_snapshot_pop(snapshot);
 }
