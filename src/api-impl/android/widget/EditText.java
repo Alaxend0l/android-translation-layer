@@ -97,7 +97,11 @@ public class EditText extends TextView {
 
 	private LiveEditable editable;
 
-	public Editable getText() {
+	/* Both getters use this, never each other: apps override getText() and call
+	 * getEditableText() from it (Fossify's MyEditText), so delegating between
+	 * the two public methods recursed forever. As in AOSP, neither calls the
+	 * other. */
+	private Editable liveText() {
 		if (editable == null)
 			editable = new LiveEditable();
 		String current = native_getText(widget);
@@ -105,8 +109,12 @@ public class EditText extends TextView {
 		return editable;
 	}
 
+	public Editable getText() {
+		return liveText();
+	}
+
 	public Editable getEditableText() {
-		return getText();
+		return liveText();
 	}
 
 	/* Enter: onEditorAction gets this IME action as actionId (IME_NULL if none) */
