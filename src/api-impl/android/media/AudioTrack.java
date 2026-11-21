@@ -178,6 +178,31 @@ public class AudioTrack {
 		return playbackState;
 	}
 
+	public int getChannelCount() {
+		return channels;
+	}
+
+	/* AOSP reports underruns tracked natively; ATL's write path doesn't track
+	 * them, so no underrun has been recorded. */
+	public int getUnderrunCount() {
+		return 0;
+	}
+
+	public int getEncoding() {
+		return audioFormat;
+	}
+
+	/* AOSP reads the frame count from the audioflinger client buffer; ATL sizes
+	 * its write buffer in bytes (2 == PCM16, same assumption as write()). */
+	public int getBufferSizeInFrames() {
+		return bufferSizeInBytes / channels / 2;
+	}
+
+	/* AOSP queries audioflinger; ATL's native layer has no latency report. */
+	public int getLatency() {
+		return 0;
+	}
+
 	public void pause() {
 		System.out.println("calling AudioTrack.pause()\n");
 		playbackState = PLAYSTATE_PAUSED;
