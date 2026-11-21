@@ -223,6 +223,14 @@ extern "C" {
 #define android_widget_EditText_PFLAG_ACTIVATED 1073741824L
 /*
  * Class:     android_widget_EditText
+ * Method:    native_setPasswordMode
+ * Signature: (JZZ)V
+ */
+JNIEXPORT void JNICALL Java_android_widget_EditText_native_1setPasswordMode
+  (JNIEnv *, jobject, jlong, jboolean, jboolean);
+
+/*
+ * Class:     android_widget_EditText
  * Method:    native_constructor
  * Signature: (Landroid/content/Context;Landroid/util/AttributeSet;)J
  */
