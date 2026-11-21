@@ -40,6 +40,22 @@ JNIEXPORT jlong JNICALL Java_android_widget_TextView_native_1constructor(JNIEnv 
 	return _INTPTR(box);
 }
 
+JNIEXPORT void JNICALL Java_android_widget_TextView_native_1setAlignment(JNIEnv *env, jobject this, jfloat xalign, jfloat yalign)
+{
+	GtkWidget *box = _PTR(_GET_LONG_FIELD(this, "widget"));
+	/* only the box+label layout built by TextView's own native_constructor */
+	if (!GTK_IS_BOX(box))
+		return;
+	GtkWidget *label = gtk_widget_get_last_child(box);
+	if (label && !GTK_IS_LABEL(label))
+		label = gtk_widget_get_prev_sibling(label);
+	if (!label || !GTK_IS_LABEL(label))
+		return;
+	gtk_label_set_xalign(GTK_LABEL(label), xalign);
+	gtk_label_set_yalign(GTK_LABEL(label), yalign);
+	gtk_label_set_justify(GTK_LABEL(label), xalign == 0.5f ? GTK_JUSTIFY_CENTER : xalign == 1.0f ? GTK_JUSTIFY_RIGHT : GTK_JUSTIFY_LEFT);
+}
+
 JNIEXPORT void JNICALL Java_android_widget_TextView_native_1setText(JNIEnv *env, jobject this, jobject charseq)
 {
 	const char *text = charseq ? (*env)->GetStringUTFChars(env, charseq, NULL) : NULL;
