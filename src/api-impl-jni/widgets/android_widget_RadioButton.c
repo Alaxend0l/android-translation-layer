@@ -8,7 +8,10 @@
 
 static void on_checked_state_changed(GObject *self, GParamSpec *pspec, WrapperWidget *wrapper)
 {
-	J__View__refreshDrawableState(get_jni_env(), wrapper->jobj);
+	/* refreshes the drawable state and, for user clicks, calls the OnClickListener */
+	JNIEnv *env = get_jni_env();
+	J__CompoundButton__onNativeCheckedStateChanged(env, wrapper->jobj);
+	ATL_CALLBACK_CHECK(env);
 }
 
 JNIEXPORT jlong JNICALL Java_android_widget_RadioButton_native_1constructor(JNIEnv *env, jobject this, jobject context, jobject attrs)
@@ -23,7 +26,7 @@ JNIEXPORT jlong JNICALL Java_android_widget_RadioButton_native_1constructor(JNIE
 	return _INTPTR(button);
 }
 
-JNIEXPORT void JNICALL Java_android_widget_RadioButton_setChecked(JNIEnv *env, jobject this, jboolean checked)
+JNIEXPORT void JNICALL Java_android_widget_RadioButton_native_1setChecked(JNIEnv *env, jobject this, jboolean checked)
 {
 	gtk_check_button_set_active(GTK_CHECK_BUTTON(_PTR(_GET_LONG_FIELD(this, "widget"))), checked);
 }
@@ -51,7 +54,7 @@ JNIEXPORT void JNICALL Java_android_widget_RadioButton_setOnCheckedChangeListene
 	}
 }
 
-JNIEXPORT void JNICALL Java_android_widget_RadioButton_setText(JNIEnv *env, jobject this, jstring text)
+JNIEXPORT void JNICALL Java_android_widget_RadioButton_native_1setRadioText(JNIEnv *env, jobject this, jstring text)
 {
 	GtkCheckButton *button = GTK_CHECK_BUTTON(_PTR(_GET_LONG_FIELD(this, "widget")));
 	const char *text_str = text ? (*env)->GetStringUTFChars(env, text, NULL) : NULL;

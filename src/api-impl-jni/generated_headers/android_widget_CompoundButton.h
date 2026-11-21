@@ -247,10 +247,10 @@ JNIEXPORT void JNICALL Java_android_widget_CompoundButton_setOnCheckedChangeList
 
 /*
  * Class:     android_widget_CompoundButton
- * Method:    setChecked
+ * Method:    native_setChecked
  * Signature: (Z)V
  */
-JNIEXPORT void JNICALL Java_android_widget_CompoundButton_setChecked
+JNIEXPORT void JNICALL Java_android_widget_CompoundButton_native_1setChecked
   (JNIEnv *, jobject, jboolean);
 
 /*

@@ -60,13 +60,62 @@ public class EditText extends TextView {
 		return native_gtkEventPropagation();
 	}
 
+	/**
+	 * The Editable apps get from getText(): one instance per EditText, synced from
+	 * the GtkText on every getText() call, and writing every change (insert,
+	 * delete, append, clear, replace all go through replace()) back to it, which
+	 * also fires TextWatchers as on Android. A reference held across user typing
+	 * is refreshed on the next getText().
+	 */
+	private final class LiveEditable extends SpannableStringBuilder {
+		private boolean syncing;
+
+		@Override
+		public SpannableStringBuilder replace(final int start, final int end, CharSequence tb, int tbstart, int tbend) {
+			super.replace(start, end, tb, tbstart, tbend);
+			if (!syncing) {
+				// only when it differs: GTK reports a "change" even for identical
+				// text, which would loop with TextWatchers that rewrite the text
+				String text = toString();
+				if (!text.equals(native_getText(widget)))
+					native_setText(widget, text);
+			}
+			return this;
+		}
+
+		void syncFrom(String text) {
+			if (toString().equals(text))
+				return;
+			syncing = true;
+			try {
+				super.replace(0, length(), text, 0, text.length());
+			} finally {
+				syncing = false;
+			}
+		}
+	}
+
+	private LiveEditable editable;
+
 	public Editable getText() {
-		return new SpannableStringBuilder(native_getText(widget));
+		if (editable == null)
+			editable = new LiveEditable();
+		String current = native_getText(widget);
+		editable.syncFrom(current == null ? "" : current);
+		return editable;
 	}
 
 	public Editable getEditableText() {
-		return new SpannableStringBuilder(native_getText(widget));
+		return getText();
 	}
+
+	/* Enter: onEditorAction gets this IME action as actionId (IME_NULL if none) */
+	@Override
+	protected void onImeOptionsChanged() {
+		native_setImeAction(widget, getImeOptions() & 0xff /* EditorInfo.IME_MASK_ACTION */);
+	}
+
+	protected native void native_setImeAction(long widget, int action);
 
 	@Override
 	public void setText(CharSequence text) {
