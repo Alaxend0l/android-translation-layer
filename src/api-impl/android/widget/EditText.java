@@ -15,10 +15,34 @@ public class EditText extends TextView {
 
 	public EditText(Context context, AttributeSet attrs) {
 		super(context, attrs);
+		defaultInputType();
 	}
+
+	/* AOSP: an editable TextView without android:inputType gets TYPE_CLASS_TEXT */
+	private void defaultInputType() {
+		if (getInputType() == android.text.InputType.TYPE_NULL)
+			setRawInputType(android.text.InputType.TYPE_CLASS_TEXT);
+	}
+
+	/* Masking happens in the GtkText itself (it keeps the real text); the input
+	 * purpose tells the on-screen keyboard not to learn or suggest passwords. */
+	@Override
+	protected void onTransformationMethodChanged() {
+		native_setPasswordMode(widget, isPasswordMasked(),
+		                       (getInputType() & android.text.InputType.TYPE_MASK_CLASS) == android.text.InputType.TYPE_CLASS_NUMBER);
+	}
+
+	@Override
+	protected void onInputTypeChanged() {
+		native_setPasswordMode(widget, isPasswordMasked(),
+		                       (getInputType() & android.text.InputType.TYPE_MASK_CLASS) == android.text.InputType.TYPE_CLASS_NUMBER);
+	}
+
+	protected native void native_setPasswordMode(long widget, boolean masked, boolean numeric);
 
 	public EditText(Context context, AttributeSet attrs, int defStyle, int defStyleRes) {
 		super(context, attrs, defStyle, defStyleRes);
+		defaultInputType();
 	}
 
 	@Override
