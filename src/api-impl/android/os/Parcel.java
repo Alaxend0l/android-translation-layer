@@ -770,7 +770,7 @@ public class Parcel {
 	}
 
 	public void writeStrongInterface(IInterface binder) {
-		writeInt(binder == null ? -1 : 0);
+		writeStrongBinder(binder == null ? null : binder.asBinder());
 	}
 
 	public void writeBinderArray(IBinder[] array) {
@@ -888,8 +888,10 @@ public class Parcel {
 		} else if (value instanceof SparseArray) {
 			writeInt(20);
 			writeSparseArray((SparseArray<?>)value);
-		} else if (value instanceof Binder) {
+		} else if (value instanceof IBinder) {
+			// by reference, like writeStrongBinder (was: a fresh empty Binder on the reading side)
 			writeInt(21);
+			writeStrongBinder((IBinder)value);
 		} else if (value instanceof Serializable) {
 			writeInt(22);
 			writeSerializable((Serializable)value);
@@ -944,7 +946,7 @@ public class Parcel {
 			case 20:
 				return readSparseArray(loader);
 			case 21:
-				return new Binder();
+				return readStrongBinder();
 			case 22:
 				return readSerializable();
 			default:

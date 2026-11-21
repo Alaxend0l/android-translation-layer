@@ -57,4 +57,20 @@ public class CreatorImpl implements IBinder {
 		reply.setDataPosition(0);
 		return true;
 	}
+
+	// a local binder can't die while its process runs (as in AOSP's Binder)
+	@Override
+	public boolean pingBinder() {
+		return true;
+	}
+	@Override
+	public boolean isBinderAlive() {
+		return true;
+	}
+	@Override
+	public void linkToDeath(IBinder.DeathRecipient recipient, int flags) {}
+	@Override
+	public boolean unlinkToDeath(IBinder.DeathRecipient recipient, int flags) {
+		return true;
+	}
 }

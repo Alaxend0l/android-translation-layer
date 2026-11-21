@@ -1501,7 +1501,10 @@ public class PackageManager {
 	 */
 	public int getPackageUid(String packageName, int userHandle)
 	    throws NameNotFoundException {
-		return -1;
+		android.content.pm.PackageParser.Package pkg = android.atl.ATLLoadedApp.getPrimaryApplication().pkg;
+		if (pkg.packageName.equals(packageName))
+			return pkg.applicationInfo.uid;
+		throw new NameNotFoundException(packageName);
 	}
 
 	/**
@@ -2074,7 +2077,13 @@ public class PackageManager {
 	 * @return Returns an array of one or more packages assigned to the user
 	 * id, or null if there are no known packages with the given id.
 	 */
+	/* One app per process: the only package with a uid is the app itself
+	 * (media3's MediaSessionService validates its own controller this way). */
 	public String[] getPackagesForUid(int uid) {
+		// the uid Binder.getCallingUid() and Process report for the app
+		android.content.pm.PackageParser.Package pkg = android.atl.ATLLoadedApp.getPrimaryApplication().pkg;
+		if (pkg.applicationInfo.uid == uid)
+			return new String[] {pkg.packageName};
 		return null;
 	}
 

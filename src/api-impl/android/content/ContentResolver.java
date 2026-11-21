@@ -92,7 +92,34 @@ public class ContentResolver {
 	}
 
 	public Cursor query(Uri uri, String[] projection, Bundle queryArgs, CancellationSignal cancellationSignal) {
-		if ("file".equals(uri.getScheme())) {
+		ContentProvider provider = ContentProvider.atl_get_content_provider(uri.getAuthority());
+		if (provider != null) {
+			/* as ContentProvider.query(Uri, String[], Bundle, CancellationSignal) in AOSP: the
+			 * SQL-style arguments; a limit/offset is passed on as the "limit" query parameter
+			 * (honoured by the media provider) */
+			String selection = null, sortOrder = null;
+			String[] selectionArgs = null;
+			if (queryArgs != null) {
+				selection = queryArgs.getString("android:query-arg-sql-selection");
+				selectionArgs = queryArgs.getStringArray("android:query-arg-sql-selection-args");
+				sortOrder = queryArgs.getString("android:query-arg-sql-sort-order");
+				if (sortOrder == null) {
+					String[] columns = queryArgs.getStringArray("android:query-arg-sort-columns");
+					if (columns != null && columns.length > 0) {
+						sortOrder = String.join(", ", columns);
+						if (queryArgs.getInt("android:query-arg-sort-direction", 0) == 1)
+							sortOrder += " DESC";
+					}
+				}
+				if (queryArgs.containsKey("android:query-arg-limit")) {
+					String limit = String.valueOf(queryArgs.getInt("android:query-arg-limit"));
+					if (queryArgs.containsKey("android:query-arg-offset"))
+						limit = queryArgs.getInt("android:query-arg-offset") + ", " + limit;
+					uri = uri.buildUpon().appendQueryParameter("limit", limit).build();
+				}
+			}
+			return provider.query(uri, projection, selection, selectionArgs, sortOrder);
+		} else if ("file".equals(uri.getScheme())) {
 			MatrixCursor cursor = new MatrixCursor(projection);
 			Object[] row = new Object[projection.length];
 			native_query_file_info(uri.getPath(), projection, row);
