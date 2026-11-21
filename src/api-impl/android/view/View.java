@@ -2325,7 +2325,11 @@ public class View implements Drawable.Callback {
 		postInvalidate();
 	}
 
-	public void setPaddingRelative(int start, int top, int end, int bottom) {}
+	public void setPaddingRelative(int start, int top, int end, int bottom) {
+		// This View is always LTR (getLayoutDirection() returns LAYOUT_DIRECTION_LTR),
+		// so start maps to left and end maps to right.
+		setPadding(start, top, end, bottom);
+	}
 
 	private native boolean nativeIsAttachedToWindow(long widget);
 	public boolean isAttachedToWindow() {
