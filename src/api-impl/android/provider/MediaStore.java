@@ -196,6 +196,26 @@ public class MediaStore {
 			}
 		}
 
+		public static class Playlists {
+			public static final Uri EXTERNAL_CONTENT_URI = Uri.parse("content://media/external/audio/playlists");
+			public static final Uri INTERNAL_CONTENT_URI = Uri.parse("content://media/internal/audio/playlists");
+			public static final String CONTENT_TYPE = "vnd.android.cursor.dir/playlist";
+			public static final String ENTRY_CONTENT_TYPE = "vnd.android.cursor.item/playlist";
+			public static final String DEFAULT_SORT_ORDER = "name";
+			public static Uri getContentUri(String volume) {
+				return uri(volume, "audio/playlists");
+			}
+			public static class Members {
+				public static final String AUDIO_ID = "audio_id";
+				public static final String PLAYLIST_ID = "playlist_id";
+				public static final String PLAY_ORDER = "play_order";
+				public static final String DEFAULT_SORT_ORDER = "play_order";
+				public static Uri getContentUri(String volume, long playlistId) {
+					return uri(volume, "audio/playlists/" + playlistId + "/members");
+				}
+			}
+		}
+
 		public static class Genres {
 			public static final Uri EXTERNAL_CONTENT_URI = Uri.parse("content://media/external/audio/genres");
 			public static final Uri INTERNAL_CONTENT_URI = Uri.parse("content://media/internal/audio/genres");

@@ -29,7 +29,7 @@ import java.util.Map;
  */
 public final class ATLMediaStore {
 	private static final String TAG = "ATLMediaStore";
-	private static final int SCHEMA_VERSION = 2;
+	private static final int SCHEMA_VERSION = 3;
 	/** a query rescans (stat only, unchanged files aren't probed) when the index is older than this */
 	private static final long RESCAN_AFTER_MS = 10_000;
 	public static final String UNKNOWN = "<unknown>"; // MediaStore.UNKNOWN_STRING
@@ -115,6 +115,9 @@ public final class ATLMediaStore {
 			db.execSQL("DROP VIEW IF EXISTS visible_files");
 			db.execSQL("DROP TABLE IF EXISTS files");
 			db.execSQL("DROP TABLE IF EXISTS thumbnails");
+			db.execSQL("DROP VIEW IF EXISTS audio_playlist_members");
+			db.execSQL("DROP TABLE IF EXISTS audio_playlists_map");
+			db.execSQL("DROP TABLE IF EXISTS audio_playlists");
 		}
 		db.execSQL("CREATE TABLE IF NOT EXISTS files ("
 			+ "_id INTEGER PRIMARY KEY, _data TEXT UNIQUE NOT NULL, _display_name TEXT, _size INTEGER, mime_type TEXT, "
@@ -131,6 +134,19 @@ public final class ATLMediaStore {
 			+ "description TEXT, bookmark INTEGER, has_picture INTEGER DEFAULT 0, "
 			+ "_scan_size INTEGER, _scan_mtime INTEGER)");
 		// ATL doesn't generate thumbnails: the table is empty and apps decode the full item
+		// playlists are app data, not scanned: rescans never touch them
+		db.execSQL("CREATE TABLE IF NOT EXISTS audio_playlists (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
+			+ "_data TEXT, date_added INTEGER, date_modified INTEGER)");
+		db.execSQL("CREATE TABLE IF NOT EXISTS audio_playlists_map (_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+			+ "audio_id INTEGER NOT NULL, playlist_id INTEGER NOT NULL, play_order INTEGER NOT NULL DEFAULT 0)");
+		db.execSQL("CREATE VIEW IF NOT EXISTS audio_playlist_members AS SELECT m._id AS _id, m.audio_id AS audio_id, "
+			+ "m.playlist_id AS playlist_id, m.play_order AS play_order, a._data AS _data, a._display_name AS _display_name, "
+			+ "a._size AS _size, a.mime_type AS mime_type, a.title AS title, a.artist AS artist, a.artist_id AS artist_id, "
+			+ "a.album AS album, a.album_id AS album_id, a.album_artist AS album_artist, a.genre AS genre, a.track AS track, "
+			+ "a.year AS year, a.duration AS duration, a.date_added AS date_added, a.date_modified AS date_modified, "
+			+ "a.is_music AS is_music, a.bucket_display_name AS bucket_display_name, a.relative_path AS relative_path, "
+			+ "a.volume_name AS volume_name, a.media_type AS media_type, a.is_pending AS is_pending, a.is_trashed AS is_trashed "
+			+ "FROM audio_playlists_map m JOIN audio_media a ON a._id = m.audio_id");
 		db.execSQL("CREATE TABLE IF NOT EXISTS thumbnails (_id INTEGER PRIMARY KEY, _data TEXT, image_id INTEGER, video_id INTEGER, "
 			+ "kind INTEGER, width INTEGER, height INTEGER)");
 		// Android hides pending and trashed items from ordinary queries
@@ -351,6 +367,13 @@ public final class ATLMediaStore {
 						if (s.size() == 5 && "albums".equals(s.get(4)))
 							return new Target("audio_albums", none + " AND _id IN (SELECT album_id FROM audio_media WHERE artist_id=?)", new String[] {s.get(3)}, "audio_album", false);
 						return item("audio_artists", none, s, 3, "audio_artist");
+					case "playlists":
+						if (s.size() >= 5 && "members".equals(s.get(4))) {
+							if (s.size() == 6)
+								return new Target("audio_playlist_members", none + " AND playlist_id=? AND _id=?", new String[] {s.get(3), s.get(5)}, "audio_playlist_member", true);
+							return new Target("audio_playlist_members", none + " AND playlist_id=?", new String[] {s.get(3)}, "audio_playlist_member", false);
+						}
+						return item("audio_playlists", none, s, 3, "audio_playlist");
 					case "genres":
 						if (s.size() == 5 && "members".equals(s.get(4)))
 							return new Target("audio_media", none + " AND genre_id=?", new String[] {s.get(3)}, "audio", false);
@@ -459,6 +482,33 @@ public final class ATLMediaStore {
 		Target t = route(collection);
 		if (t == null || t.item)
 			throw new IllegalArgumentException("Unsupported URI for insert: " + collection);
+		if ("audio_playlist".equals(t.kind)) {
+			ContentValues v = new ContentValues();
+			String name = values.getAsString("name");
+			if (name == null)
+				throw new IllegalArgumentException("playlist needs a name");
+			long now = System.currentTimeMillis() / 1000;
+			v.put("name", name);
+			v.put("date_added", now);
+			v.put("date_modified", now);
+			return Uri.withAppendedPath(collection, Long.toString(db.insertOrThrow("audio_playlists", null, v)));
+		}
+		if ("audio_playlist_member".equals(t.kind)) {
+			Long audio = values.getAsLong("audio_id");
+			if (audio == null)
+				throw new IllegalArgumentException("playlist member needs audio_id");
+			ContentValues v = new ContentValues();
+			v.put("audio_id", audio);
+			v.put("playlist_id", Long.parseLong(t.args[0]));
+			Integer order = values.getAsInteger("play_order");
+			if (order == null) {
+				try (Cursor c = db.rawQuery("SELECT COALESCE(MAX(play_order), 0) + 1 FROM audio_playlists_map WHERE playlist_id=?", new String[] {t.args[0]})) {
+					order = c.moveToFirst() ? c.getInt(0) : 1;
+				}
+			}
+			v.put("play_order", order);
+			return Uri.withAppendedPath(collection, Long.toString(db.insertOrThrow("audio_playlists_map", null, v)));
+		}
 		String name = values.getAsString("_display_name");
 		if (name == null)
 			name = "file-" + System.currentTimeMillis();
@@ -492,6 +542,10 @@ public final class ATLMediaStore {
 	}
 
 	public synchronized int update(Target t, ContentValues values, String selection, String[] selectionArgs) {
+		if ("audio_playlists".equals(t.table))
+			return db.update("audio_playlists", values, where(t, selection), args(t, selectionArgs));
+		if ("audio_playlist_members".equals(t.table))
+			return db.update("audio_playlists_map", values, where(t, selection), args(t, selectionArgs));
 		ContentValues v = new ContentValues(values);
 		Integer pending = v.getAsInteger("is_pending");
 		int n = db.update("files", v, where(t, selection), args(t, selectionArgs));
@@ -502,6 +556,15 @@ public final class ATLMediaStore {
 
 	/** Deletes the files themselves, as MediaStore does for an app allowed to. */
 	public synchronized int delete(Target t, String selection, String[] selectionArgs) {
+		// playlists: only the list rows go, never the music files
+		if ("audio_playlists".equals(t.table)) {
+			String w = where(t, selection);
+			String[] a = args(t, selectionArgs);
+			db.delete("audio_playlists_map", "playlist_id IN (SELECT _id FROM audio_playlists WHERE " + w + ")", a);
+			return db.delete("audio_playlists", w, a);
+		}
+		if ("audio_playlist_members".equals(t.table))
+			return db.delete("audio_playlists_map", where(t, selection), args(t, selectionArgs));
 		List<String> paths = new ArrayList<>();
 		try (Cursor c = db.query("files", new String[] {"_data"}, where(t, selection), args(t, selectionArgs), null, null, null)) {
 			while (c.moveToNext())
@@ -525,7 +588,9 @@ public final class ATLMediaStore {
 			case "audio_media": w += " AND media_type=2"; break;
 			case "images_media": w += " AND media_type=1"; break;
 			case "video_media": w += " AND media_type=3"; break;
-			case "visible_files": break;
+			case "visible_files":
+			case "audio_playlists":
+			case "audio_playlist_members": break;
 			default: throw new IllegalArgumentException("can't modify " + t.table);
 		}
 		return selection == null || selection.trim().isEmpty() ? w : "(" + w + ") AND (" + selection + ")";

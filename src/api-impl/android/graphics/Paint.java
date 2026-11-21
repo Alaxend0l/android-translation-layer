@@ -21,6 +21,7 @@ public class Paint {
 	public long paint; // native paint
 	private Xfermode xfermode;
 	private Shader shader;
+	private Typeface typeface;
 	private Align align = Align.CENTER;
 	private ColorFilter color_filter;
 
@@ -36,6 +37,7 @@ public class Paint {
 	public Paint(Paint paint) {
 		this.paint = native_clone(paint.paint); // the native shader reference is cloned too
 		this.shader = paint.shader;
+		this.typeface = paint.typeface;
 		this.xfermode = paint.xfermode;
 		this.align = paint.align;
 		this.color_filter = paint.color_filter;
@@ -81,6 +83,7 @@ public class Paint {
 	}
 
 	public Typeface setTypeface(Typeface typeface) {
+		this.typeface = typeface; // drawing doesn't use it yet: text-and-fonts.md step 8
 		return typeface;
 	}
 	public void getTextBounds(String text, int start, int end, Rect bounds) {
@@ -318,7 +321,7 @@ public class Paint {
 	}
 
 	public Typeface getTypeface() {
-		return new Typeface();
+		return typeface; // as AOSP: what was set (null = default)
 	}
 
 	public void setTextAlign(Align align) {
@@ -366,6 +369,7 @@ public class Paint {
 		native_recycle(this.paint);
 		this.paint = native_clone(paint.paint);
 		this.shader = paint.shader;
+		this.typeface = paint.typeface;
 		this.xfermode = paint.xfermode;
 		this.align = paint.align;
 		this.color_filter = paint.color_filter;
@@ -412,6 +416,7 @@ public class Paint {
 		paint = native_create();
 		xfermode = null;
 		shader = null;
+		typeface = null;
 		align = Align.CENTER;
 		color_filter = null;
 	}

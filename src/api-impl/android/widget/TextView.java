@@ -198,26 +198,26 @@ public class TextView extends View {
 			}
 		}
 	}
+	private Typeface typeface = Typeface.DEFAULT;
+
+	/* AOSP: style > 0 derives that style from tf (or the default family) */
 	public void setTypeface(Typeface tf, int style) {
+		if (style > 0)
+			tf = tf == null ? Typeface.defaultFromStyle(style) : Typeface.create(tf, style);
+		setTypeface(tf);
+	}
+
+	/* family and font files aren't applied yet (docs/agent-tasks/text-and-fonts.md
+	 * step 8); bold and italic are, through the widget's CSS classes */
+	public void setTypeface(Typeface tf) {
+		typeface = tf != null ? tf : Typeface.DEFAULT;
 		String[] classesToRemove = {"ATL-font-bold", "ATL-font-italic"};
 		native_removeClasses(widget, classesToRemove);
-
-		switch (style) {
-			case Typeface.BOLD:
-				native_addClass(widget, "ATL-font-bold");
-				break;
-			case Typeface.ITALIC:
-				native_addClass(widget, "ATL-font-italic");
-				break;
-			case Typeface.BOLD_ITALIC:
-				native_addClass(widget, "ATL-font-bold");
-				native_addClass(widget, "ATL-font-italic");
-				break;
-			default:
-				break;
-		}
+		if (typeface.isBold())
+			native_addClass(widget, "ATL-font-bold");
+		if (typeface.isItalic())
+			native_addClass(widget, "ATL-font-italic");
 	}
-	public void setTypeface(Typeface tf) {}
 	public void setLineSpacing(float add, float mult) {}
 	public final void setLinksClickable(boolean whether) {}
 
@@ -324,7 +324,7 @@ public class TextView extends View {
 	public void setMinWidth(int minWidth) {}
 	public void setMaxWidth(int maxWidth) {}
 
-	public Typeface getTypeface() { return null; }
+	public Typeface getTypeface() { return typeface; }
 
 	public float getTextSize() { return 10; }
 

@@ -14,10 +14,22 @@ public class RippleDrawable extends LayerDrawable {
 
 	public void setColor(ColorStateList colorStateList) {}
 
-	public void setRadius(int radius) {}
+	/* AOSP: ripple radius in px, RADIUS_AUTO (-1) = from the bounds. Stored; ATL
+	 * draws the pressed state without the ripple animation. */
+	private int radius = -1;
+
+	public void setRadius(int radius) {
+		this.radius = radius;
+		invalidateSelf();
+	}
+
+	/* the pre-API-23 hidden name, still called through reflection by Material */
+	public void setMaxRadius(int maxRadius) {
+		setRadius(maxRadius);
+	}
 
 	public int getRadius() {
-		return 0;
+		return radius;
 	}
 
 	@Override
