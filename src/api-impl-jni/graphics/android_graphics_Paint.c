@@ -24,6 +24,8 @@ JNIEXPORT jlong JNICALL Java_android_graphics_Paint_native_1clone(JNIEnv *env, j
 	struct AndroidPaint *clone = g_memdup2(paint, sizeof(struct AndroidPaint));
 	clone->gsk_stroke = gsk_stroke_copy(paint->gsk_stroke);
 	clone->font = pango_font_description_copy(paint->font);
+	if (clone->shader)
+		android_shader_ref(clone->shader);
 	return _INTPTR(clone);
 }
 
@@ -32,7 +34,18 @@ JNIEXPORT void JNICALL Java_android_graphics_Paint_native_1recycle(JNIEnv *env, 
 	struct AndroidPaint *paint = _PTR(paint_ptr);
 	gsk_stroke_free(paint->gsk_stroke);
 	pango_font_description_free(paint->font);
+	if (paint->shader)
+		android_shader_unref(paint->shader);
 	g_free(paint);
+}
+
+JNIEXPORT void JNICALL Java_android_graphics_Paint_native_1set_1shader(JNIEnv *env, jclass clazz, jlong paint_ptr, jlong shader_ptr)
+{
+	struct AndroidPaint *paint = _PTR(paint_ptr);
+	struct AndroidShader *shader = shader_ptr ? android_shader_ref(_PTR(shader_ptr)) : NULL;
+	if (paint->shader)
+		android_shader_unref(paint->shader);
+	paint->shader = shader;
 }
 
 JNIEXPORT void JNICALL Java_android_graphics_Paint_native_1set_1color(JNIEnv *env, jclass clazz, jlong paint_ptr, jint color)
