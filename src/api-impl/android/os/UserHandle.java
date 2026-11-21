@@ -135,7 +135,12 @@ public final class UserHandle {
 	 * @hide
 	 */
 	public static final int getCallingUserId() {
-		return 1000; // FIXME
+		/* The loaded app's uid (Binder.getCallingUid) is a single-user value: keep
+		 * this consistent with it, or generateApplicationInfo() mangles the copy's
+		 * uid via getUid(1000, -1) and media3's isTrustedForMediaControl() then
+		 * mismatches Binder.getCallingUid()/Process.myUid() (Fossify Music got
+		 * read-only player commands). getUserId(-1) = 0: single user. */
+		return getUserId(android.os.Binder.getCallingUid());
 	}
 
 	/**

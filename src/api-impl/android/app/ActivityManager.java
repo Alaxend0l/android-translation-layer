@@ -100,6 +100,15 @@ public class ActivityManager {
 
 	public static void getMyMemoryState(RunningAppProcessInfo outInfo) {}
 
+	/* AOSP (Android 8): set by the test harness via ro.hwui.test_vsync; read e.g. by
+	 * androidx.media3's AudioTrack in a static block to pick latency-management defaults. */
+	private static final boolean RUN_IN_TEST_HARNESS = android.os.SystemProperties.getInt(
+			"ro.hwui.test_vsync", 0) != 0;
+
+	public static boolean isRunningInTestHarness() {
+		return RUN_IN_TEST_HARNESS;
+	}
+
 	public boolean clearApplicationUserData() { return false; }
 
 	public static class ProcessErrorStateInfo implements Parcelable {

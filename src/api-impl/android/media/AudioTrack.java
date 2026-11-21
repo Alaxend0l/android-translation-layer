@@ -142,6 +142,29 @@ public class AudioTrack {
 		return sessionId;
 	}
 
+	public int getSessionId() {
+		return sessionId;
+	}
+
+	/* AudioRouting (API 33). ATL's audio output route is fixed, so listeners
+	 * are registered but no routing-change callback is ever generated. */
+	private final java.util.concurrent.CopyOnWriteArrayList<AudioRouting.OnRoutingChangedListener> mRoutingListeners =
+		new java.util.concurrent.CopyOnWriteArrayList<>();
+
+	public void addOnRoutingChangedListener(AudioRouting.OnRoutingChangedListener listener, android.os.Handler handler) {
+		if (listener == null) {
+			throw new IllegalArgumentException("listener cannot be null");
+		}
+		mRoutingListeners.addIfAbsent(listener);
+	}
+
+	public void removeOnRoutingChangedListener(AudioRouting.OnRoutingChangedListener listener) {
+		if (listener == null) {
+			throw new IllegalArgumentException("listener cannot be null");
+		}
+		mRoutingListeners.remove(listener);
+	}
+
 	public int getSampleRate() {
 		return sampleRateInHz;
 	}
@@ -191,11 +214,22 @@ public class AudioTrack {
 		private AudioFormat mFormat;
 		private int mBufferSizeInBytes;
 		private int mTransferMode;
+		private int mSessionId; // 0 == AudioTrack.SESSION_ID_GENERATE
 
 		public Builder() {}
 
 		public AudioTrack build() {
-			return new AudioTrack(mAttributes, mFormat, mBufferSizeInBytes, mTransferMode, 0);
+			return new AudioTrack(mAttributes, mFormat, mBufferSizeInBytes, mTransferMode, mSessionId);
+		}
+
+		/* AOSP rejects SESSION_ID_NONE (-1) and SESSION_ID_OMAP (-2); used by
+		 * androidx.media3's AudioTrack when building through the Builder API. */
+		public Builder setSessionId(int sessionId) {
+			if (sessionId == -1 || sessionId == -2) {
+				throw new IllegalArgumentException("Not a valid audio session id");
+			}
+			mSessionId = sessionId;
+			return this;
 		}
 
 		public Builder setAudioAttributes(AudioAttributes attributes) {
