@@ -1874,6 +1874,7 @@ public class View implements Drawable.Callback {
 	private boolean in_layout = false;
 
 	public void layout(int l, int t, int r, int b) {
+		int oldLeft = this.left, oldTop = this.top, oldRight = this.right, oldBottom = this.bottom;
 		this.layouted = true;
 		this.left = l;
 		this.top = t;
@@ -1883,6 +1884,26 @@ public class View implements Drawable.Callback {
 			native_queueAllocate(widget); // GTK is not re-entrant-safe. Queue allocation
 		else
 			native_layout(widget, l, t, r, b);
+		boolean changed = l != oldLeft || t != oldTop || r != oldRight || b != oldBottom;
+		if (changed)
+			onSizeChanged(r - l, b - t, oldRight - oldLeft, oldBottom - oldTop);
+		/* AOSP View.layout() calls onSizeChanged() and dispatches OnLayoutChangeListeners
+		 * whenever the frame changed. ATL only did that in layoutInternal() (the JNI/GTK
+		 * entry), so views sized by Android-side ViewGroups (RecyclerView and
+		 * ConstraintLayout call layout() on their children) never notified their
+		 * listeners: Glide's SizeDeterminer adds a one-shot listener while a view is
+		 * still 0x0 at bind time, waited on it forever, and album/track covers stayed
+		 * unloaded (Fossify showed its error placeholder without any error).
+		 * Do NOT call onLayout() here: ViewGroups are laid out by the GTK allocation
+		 * pass (layoutInternal), and running a ViewGroup's onLayout() from both paths
+		 * double-dispatches it (androidx RecyclerView then throws
+		 * "Layout state should be one of 100 but it is 10", RunnerUp went BLANK).
+		 * The children of an Android-laid-out ViewGroup get their own layout() calls
+		 * from the app's own ViewGroup code. */
+		if (on_layout_change_listeners != null && changed) {
+			for (OnLayoutChangeListener on_layout_change_listener : on_layout_change_listeners)
+				on_layout_change_listener.onLayoutChange(this, l, t, r, b, oldLeft, oldTop, oldRight, oldBottom);
+		}
 	}
 
 	/** Helper function to be called from GTKs LayoutManager via JNI */
