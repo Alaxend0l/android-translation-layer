@@ -2220,7 +2220,9 @@ public class Resources {
 		if (dr != null) {
 			dr.setChangingConfigurations(value.changingConfigurations);
 			Drawable.ConstantState cs = dr.getConstantState();
-			if (cs != null) {
+			// A SameInstanceState can't make new instances: caching it would hand the
+			// same object to every caller (one view's setAlpha would change all).
+			if (cs != null && !(cs instanceof Drawable.SameInstanceState)) {
 				/*if (mPreloading) {
 					final int changingConfigs = cs.getChangingConfigurations();
 					if (isColorDrawable) {

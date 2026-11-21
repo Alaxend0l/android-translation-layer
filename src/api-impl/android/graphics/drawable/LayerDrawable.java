@@ -408,16 +408,16 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 		}
 	}*/
 
-	/*@Override
+	@Override
 	public void setAlpha(int alpha) {
 		final ChildDrawable[] array = mLayerState.mChildren;
 		final int N = mLayerState.mNum;
 		for (int i = 0; i < N; i++) {
 			array[i].mDrawable.setAlpha(alpha);
 		}
-	}*/
+	}
 
-	/*@Override
+	@Override
 	public int getAlpha() {
 		final ChildDrawable[] array = mLayerState.mChildren;
 		if (mLayerState.mNum > 0) {
@@ -426,7 +426,7 @@ public class LayerDrawable extends Drawable implements Drawable.Callback {
 		} else {
 			return super.getAlpha();
 		}
-	}*/
+	}
 
 	/*@Override
 	public void setColorFilter(ColorFilter cf) {
