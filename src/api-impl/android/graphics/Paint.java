@@ -34,7 +34,11 @@ public class Paint {
 	}
 
 	public Paint(Paint paint) {
-		this.paint = native_clone(paint.paint);
+		this.paint = native_clone(paint.paint); // the native shader reference is cloned too
+		this.shader = paint.shader;
+		this.xfermode = paint.xfermode;
+		this.align = paint.align;
+		this.color_filter = paint.color_filter;
 	}
 
 	public void setColor(int color) {
@@ -135,6 +139,7 @@ public class Paint {
 
 	public Shader setShader(Shader shader) {
 		this.shader = shader;
+		native_set_shader(paint, shader != null ? shader.native_shader : 0);
 		return shader;
 	}
 
@@ -360,6 +365,10 @@ public class Paint {
 	public void set(Paint paint) {
 		native_recycle(this.paint);
 		this.paint = native_clone(paint.paint);
+		this.shader = paint.shader;
+		this.xfermode = paint.xfermode;
+		this.align = paint.align;
+		this.color_filter = paint.color_filter;
 	}
 
 	public boolean isFilterBitmap() { return false; }
@@ -410,6 +419,7 @@ public class Paint {
 	private static native long native_create();
 	private static native long native_clone(long paint);
 	private static native void native_recycle(long paint);
+	private static native void native_set_shader(long paint, long shader);
 	private static native void native_set_color(long paint, int color);
 	private static native int native_get_color(long paint);
 	private static native void native_set_alpha(long paint, int alpha);
