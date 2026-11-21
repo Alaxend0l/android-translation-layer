@@ -21,6 +21,21 @@ public class Binder implements IBinder {
 		return mOwner;
 	}
 
+	// a local binder can't die while its process runs (as in AOSP's Binder)
+	@Override
+	public boolean pingBinder() {
+		return true;
+	}
+	@Override
+	public boolean isBinderAlive() {
+		return true;
+	}
+	@Override
+	public void linkToDeath(DeathRecipient recipient, int flags) {}
+	@Override
+	public boolean unlinkToDeath(DeathRecipient recipient, int flags) {
+		return true;
+	}
 	public static void flushPendingCommands() {}
 
 	public static long clearCallingIdentity() { return 0; }
