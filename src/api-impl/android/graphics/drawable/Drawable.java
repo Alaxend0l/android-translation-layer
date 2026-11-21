@@ -69,23 +69,36 @@ public class Drawable {
 
 	public void setChangingConfigurations(int bitmap) {}
 
+	/* AOSP returns null here; ATL returns a state that hands back this same
+	 * instance, for apps that call getConstantState().newDrawable() without a null
+	 * check. It must not be used to share drawables (Resources doesn't cache it):
+	 * per-instance state such as alpha, tint or bounds would leak between users. */
 	public ConstantState getConstantState() {
-		return new ConstantState() {
-			@Override
-			public Drawable newDrawable(Resources res) {
-				return Drawable.this;
-			}
+		return new SameInstanceState(this);
+	}
 
-			@Override
-			public Drawable newDrawable() {
-				return Drawable.this;
-			}
+	/** see getConstantState() */
+	public static final class SameInstanceState extends ConstantState {
+		private final Drawable drawable;
 
-			@Override
-			public int getChangingConfigurations() {
-				return Drawable.this.getChangingConfigurations();
-			}
-		};
+		SameInstanceState(Drawable drawable) {
+			this.drawable = drawable;
+		}
+
+		@Override
+		public Drawable newDrawable(Resources res) {
+			return drawable;
+		}
+
+		@Override
+		public Drawable newDrawable() {
+			return drawable;
+		}
+
+		@Override
+		public int getChangingConfigurations() {
+			return drawable.getChangingConfigurations();
+		}
 	}
 
 	public static abstract class ConstantState {
@@ -365,6 +378,11 @@ public class Drawable {
 	}
 
 	public void setAlpha(int alpha) {}
+
+	/* AOSP default: subclasses that support alpha override both */
+	public int getAlpha() {
+		return 0xFF;
+	}
 
 	public boolean getPadding(Rect padding) {
 		return false;
