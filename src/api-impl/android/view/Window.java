@@ -56,9 +56,19 @@ public class Window {
 		set_jobject(native_window, this);
 	}
 
-	public void addFlags(int flags) {}
-	public void setFlags(int flags, int mask) {}
-	public void clearFlags(int flags) {}
+	public void addFlags(int flags) {
+		setFlags(flags, flags);
+	}
+
+	public void setFlags(int flags, int mask) {
+		// AOSP Window.setFlags updates mWindowAttributes.flags the same way.
+		params.flags = (params.flags & ~mask) | (flags & mask);
+		decorView.setKeepScreenOn((params.flags & WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0);
+	}
+
+	public void clearFlags(int flags) {
+		setFlags(0, flags);
+	}
 
 	public final Callback getCallback() {
 		return this.callback;
