@@ -22,6 +22,7 @@ import android.hardware.usb.UsbManager;
 import android.location.LocationManager;
 import android.media.AudioManager;
 import android.media.MediaRouter;
+import android.media.session.MediaSessionManager;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -212,6 +213,8 @@ public final class ContextImpl extends Context {
 				return new BatteryManager();
 			case "download":
 				return new DownloadManager();
+			case "media_session":
+				return new MediaSessionManager(this);
 			default:
 				Slog.e(TAG, "!!!!!!! getSystemService: case >" + name + "< is not implemented yet");
 				return null;
