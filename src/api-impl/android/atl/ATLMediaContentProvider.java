@@ -1,6 +1,7 @@
 package android.atl;
 
 import android.content.ContentProvider;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
@@ -58,7 +59,9 @@ public class ATLMediaContentProvider extends ContentProvider {
 	@Override
 	public Uri insert(Uri uri, ContentValues values) {
 		try {
-			return store().insert(uri, values == null ? new ContentValues() : values);
+			Uri item = store().insert(uri, values == null ? new ContentValues() : values);
+			notifyStoreChanged(item != null ? item : uri);
+			return item;
 		} catch (IOException e) {
 			throw new IllegalStateException("Failed to create item for " + uri, e);
 		}
@@ -69,7 +72,10 @@ public class ATLMediaContentProvider extends ContentProvider {
 		ATLMediaStore.Target t = ATLMediaStore.route(uri);
 		if (t == null)
 			throw new IllegalArgumentException("Unknown URL " + uri);
-		return store().update(t, values, selection, selectionArgs);
+		int n = store().update(t, values, selection, selectionArgs);
+		if (n > 0)
+			notifyStoreChanged(uri);
+		return n;
 	}
 
 	@Override
@@ -77,6 +83,18 @@ public class ATLMediaContentProvider extends ContentProvider {
 		ATLMediaStore.Target t = ATLMediaStore.route(uri);
 		if (t == null)
 			throw new IllegalArgumentException("Unknown URL " + uri);
-		return store().delete(t, selection, selectionArgs);
+		int n = store().delete(t, selection, selectionArgs);
+		if (n > 0)
+			notifyStoreChanged(uri);
+		return n;
+	}
+
+	private void notifyStoreChanged(Uri uri) {
+		// MediaStore mutates must wake the app's observers (cursors set up
+		// with setNotificationUri, registered ContentObservers); AOSP sends
+		// notifyChange from the provider side the same way.
+		ContentResolver resolver = getContext().getContentResolver();
+		if (resolver != null)
+			resolver.notifyChange(uri, null);
 	}
 }
