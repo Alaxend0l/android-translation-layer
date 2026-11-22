@@ -81,8 +81,12 @@ public class IntentFilter {
 
 	public int match(String action, String type, String scheme, Uri data, Set<String> categories, String logTag) {
 		int ret = 0;
-		if (!matchAction(action)) {
-			ret = -3 /*NO_MATCH_ACTION*/;
+		// AOSP returns NO_MATCH_ACTION as soon as the action does not match
+		// (a null action - no data involved - is not rejected). The old code
+		// stored -3 in ret and then overwrote it with the data-category
+		// result, so every filter matched when the intent had no data.
+		if (action != null && !matchAction(action)) {
+			return -3 /*NO_MATCH_ACTION*/;
 		}
 		if (scheme == null) {
 			ret = 0x00100000 /*MATCH_CATEGORY_EMPTY*/ | 0x00008000 /*MATCH_ADJUSTMENT_NORMAL*/;
