@@ -2470,7 +2470,15 @@ public class View implements Drawable.Callback {
 		return elevation;
 	}
 
-	public boolean isLaidOut() { return true; }
+	/* AOSP: true once a layout pass has completed for this view (while
+	 * attached). ATL's layout passes are the window-driven one
+	 * (layoutInternal, tracked via the same flag getWindowToken uses) or
+	 * explicit layout() calls (the layouted flag). Queue item 115: it
+	 * claimed true always, so gating in scroll/measure helpers fired
+	 * before anything had been laid out. */
+	public boolean isLaidOut() {
+		return windowTokenAttached || layouted;
+	}
 
 	public void postOnAnimation(Runnable action) {
 		postDelayed(action, 1000 / 60);
@@ -2669,7 +2677,22 @@ public class View implements Drawable.Callback {
 			native_keep_screen_on(widget, false);
 	}
 
-	public void setLayerType(int layerType, Paint paint) {}
+	/* Layer state (queue item 117): AOSP renders the view into an
+	 * offscreen buffer for SOFTWARE/HARDWARE; the gsk draw path has no
+	 * backing store yet, but the constants and the set/get pair are real
+	 * API state apps branch on (invalidation and animation code checks
+	 * getLayerType()). */
+	public static final int LAYER_TYPE_NONE = 0;
+	public static final int LAYER_TYPE_SOFTWARE = 1;
+	public static final int LAYER_TYPE_HARDWARE = 2;
+
+	private int atl_layer_type = LAYER_TYPE_NONE;
+	private Paint atl_layer_paint = null;
+
+	public void setLayerType(int layerType, Paint paint) {
+		atl_layer_type = layerType;
+		atl_layer_paint = paint;
+	}
 
 	public float getZ() {
 		return elevation;
@@ -2910,9 +2933,23 @@ public class View implements Drawable.Callback {
 
 	public void setTooltipText(CharSequence tooltip) {}
 
-	public int getImportantForAutofill() { return 0; }
+	/* Autofill hints (queue item 113): AOSP stores the flag and hands it
+	 * back through getImportantForAutofill; the autofill service itself
+	 * does not exist in ATL, but the state is real API state. */
+	public static final int IMPORTANT_FOR_AUTOFILL_AUTO = 0x00;
+	public static final int IMPORTANT_FOR_AUTOFILL_YES = 0x01;
+	public static final int IMPORTANT_FOR_AUTOFILL_NO = 0x02;
+	public static final int IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS = 0x04;
 
-	public void setImportantForAutofill(int flag) {}
+	private int importantForAutofill = IMPORTANT_FOR_AUTOFILL_AUTO;
+
+	public void setImportantForAutofill(int flag) {
+		importantForAutofill = flag;
+	}
+
+	public int getImportantForAutofill() {
+		return importantForAutofill;
+	}
 
 	public void setDefaultFocusHighlightEnabled(boolean enabled) {}
 
@@ -2967,7 +3004,13 @@ public class View implements Drawable.Callback {
 			return false;
 	}
 
-	public WindowInsets getRootWindowInsets() { return new WindowInsets(); }
+	/* AOSP returns the root window's insets for attached views and null
+	 * for detached ones; queue item 118 flagged the unconditional empty
+	 * object. ATL has no system bars, so an attached view's root insets
+	 * are genuinely empty - the null case is what callers gate on. */
+	public WindowInsets getRootWindowInsets() {
+		return windowTokenAttached ? new WindowInsets() : null;
+	}
 
 	public PointerIcon getPointerIcon() { return null; }
 
@@ -3191,7 +3234,9 @@ public class View implements Drawable.Callback {
 
 	public void setAccessibilityTraversalBefore(int id) {}
 
-	public int getLayerType() { return 0; /* LAYER_TYPE_NONE */ }
+	public int getLayerType() {
+		return atl_layer_type;
+	}
 
 	public boolean isAccessibilityFocused() { return false; }
 
