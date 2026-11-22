@@ -209,7 +209,11 @@ public class DateFormat {
 	 * @return the {@link java.text.DateFormat} object that properly formats the date.
 	 */
 	public static java.text.DateFormat getDateFormat(Context context) {
-		return new java.text.SimpleDateFormat();
+		/* AOSP returns a date-only (locale's short date) format; the bare
+		 * SimpleDateFormat() here included the time. The pattern itself is
+		 * still ATL's fixed one (AOSP reads the locale's numeric_date_template
+		 * through ICU LocaleData, which ATL's boot classpath only stubs). */
+		return new java.text.SimpleDateFormat(getDateFormatString(context));
 	}
 
 	/**
