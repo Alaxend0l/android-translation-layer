@@ -1,6 +1,7 @@
 package android.view;
 
 import android.R;
+import android.app.ActionBar;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
@@ -36,7 +37,7 @@ public class Window {
 	public long native_window;
 	private ViewGroup decorView;
 	private Toolbar actionBarView;
-	private android.app.ActionBar actionBar;
+	private ActionBar actionBar;
 
 	private Window.Callback callback;
 	private Context context;
