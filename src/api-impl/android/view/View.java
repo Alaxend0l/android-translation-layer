@@ -978,6 +978,10 @@ public class View implements Drawable.Callback {
 	private boolean fitsSystemWindows = false;
 
 	private Drawable background;
+	private CharSequence contentDescription;
+	private AccessibilityDelegate accessibilityDelegate;
+	private boolean willNotDraw = false;
+	private int layoutDirection = LAYOUT_DIRECTION_LTR;
 	private int backgroundTint = 0;
 	private int mForegroundGravity = Gravity.START | Gravity.TOP;
 
@@ -1408,7 +1412,12 @@ public class View implements Drawable.Callback {
 
 	// --- stubs
 
-	public void setContentDescription(CharSequence contentDescription) {}
+	public void setContentDescription(CharSequence contentDescription) {
+		/* AOSP keeps it for a11y; ATL has no a11y backend, but apps and
+		 * libraries read getContentDescription() back (state save/restore,
+		 * custom a11y code), so the value is kept. */
+		this.contentDescription = contentDescription;
+	}
 
 	public void setId(int id) {
 		this.id = id;
@@ -1419,7 +1428,15 @@ public class View implements Drawable.Callback {
 	public void setFocusable(boolean focusable) {
 		atl_focusable = focusable;
 	}
-	public void setFocusable(int focusable) {}
+	public void setFocusable(int focusable) {
+		/* AOSP ViewFocusFlags: NOT_FOCUSABLE=0, FOCUSABLE=1,
+		 * FOCUSABLE_AUTO=-1 (framework decides); ATL has no automatic
+		 * focus policy, AUTO falls back to ATL's default (focusable). */
+		if (focusable == -1) /* FOCUSABLE_AUTO */
+			atl_focusable = true;
+		else
+			atl_focusable = focusable == 1; /* FOCUSABLE */
+	}
 	public void setFocusableInTouchMode(boolean focusableInTouchMode) {}
 	public final boolean requestFocus() {
 		return requestFocus(View.FOCUS_DOWN);
@@ -1742,8 +1759,13 @@ public class View implements Drawable.Callback {
 
 	public void setOnGenericMotionListener(View.OnGenericMotionListener l) {}
 
+	/* AOSP returns the window's token, shared by every view in it; an ATL
+	 * process has one window, so one token for all views (InputMethodManager
+	 * and friends compare tokens by identity). Was a fresh Binder per call. */
+	private static final IBinder windowToken = new Binder();
+
 	public IBinder getWindowToken() {
-		return new Binder();
+		return windowToken;
 	}
 
 	public void getLocationInWindow(int[] location) {
@@ -1766,7 +1788,9 @@ public class View implements Drawable.Callback {
 
 	public void setDescendantFocusability(int value) {}
 
-	public void setAccessibilityDelegate(AccessibilityDelegate delegate) {}
+	public void setAccessibilityDelegate(AccessibilityDelegate delegate) {
+		accessibilityDelegate = delegate;
+	}
 
 	public static class AccessibilityDelegate {
 		public void sendAccessibilityEvent(View view, int eventType) {}
@@ -1789,7 +1813,7 @@ public class View implements Drawable.Callback {
 	}
 
 	public CharSequence getContentDescription() {
-		return null;
+		return contentDescription;
 	}
 
 	private OnLongClickListener on_long_click_listener = null;
@@ -2023,7 +2047,12 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	public void setWillNotDraw(boolean value) {}
+	public void setWillNotDraw(boolean value) {
+		/* AOSP flag: ViewGroup skips its own draw pass. ATL draws through
+		 * GTK, which decides on its own; the value is stored because
+		 * code such as custom ViewGroups queries it back. */
+		willNotDraw = value;
+	}
 
 	public void setScrollContainer(boolean isScrollContainer) {}
 
@@ -2112,7 +2141,13 @@ public class View implements Drawable.Callback {
 			on_layout_change_listeners.remove(listener);
 	}
 
-	public void sendAccessibilityEvent(int eventType) {}
+	public void sendAccessibilityEvent(int eventType) {
+		/* AOSP routes through the AccessibilityDelegate; ATL has no
+		 * a11y backend so nothing displays, but the delegate chain is
+		 * now honoured instead of dropped. */
+		if (accessibilityDelegate != null)
+			accessibilityDelegate.sendAccessibilityEvent(this, eventType);
+	}
 
 	public void setMinimumHeight(int minHeight) {
 		this.minHeight = minHeight;
@@ -2253,7 +2288,12 @@ public class View implements Drawable.Callback {
 	public static class BaseSavedState extends AbsSavedState {
 	}
 
-	public void clearFocus() {}
+	public void clearFocus() {
+		/* ATL tracks no focus state in Java (hasFocus() is false, focus is
+		 * GTK's), so this matches what Android does for a view that does
+		 * not hold focus. Wiring it to GTK's focus grab is a focus-model
+		 * gap, not this call. */
+	}
 
 	public static View inflate(Context context, int resource, ViewGroup root) {
 		LayoutInflater factory = LayoutInflater.from(context);
@@ -2307,8 +2347,13 @@ public class View implements Drawable.Callback {
 		rect.bottom = getScrollY() + getHeight();
 	}
 
+	/* AOSP hands out the same Display object for the same screen; a fresh
+	 * one per call breaks identity comparisons. One window per ATL
+	 * process => one Display. */
+	private static final Display singleDisplay = new Display();
+
 	public Display getDisplay() {
-		return new Display();
+		return singleDisplay;
 	}
 
 	private int importantForAccessibility;
@@ -2658,7 +2703,13 @@ public class View implements Drawable.Callback {
 
 	public void setScrollIndicators(int indicators, int mask) {}
 
-	public void setLayoutDirection(int layoutDirection) {}
+	public void setLayoutDirection(int layoutDirection) {
+		/* Stored for apps that read their own setting back; ATL's layout
+		 * engine is LTR-only (getLayoutDirection keeps answering LTR so
+		 * gravity resolution and GTK layout stay consistent). RTL layout
+		 * mirroring is a separate, larger gap, not hidden by this setter. */
+		this.layoutDirection = layoutDirection;
+	}
 
 	public ColorStateList getBackgroundTintList() { return null; }
 
@@ -2861,7 +2912,7 @@ public class View implements Drawable.Callback {
 
 	public AutofillId getAutofillId() { return new AutofillId(); }
 
-	public AccessibilityDelegate getAccessibilityDelegate() { return null; }
+	public AccessibilityDelegate getAccessibilityDelegate() { return accessibilityDelegate; }
 
 	public void setScrollX(int value) {
 		scrollTo(value, scrollY);

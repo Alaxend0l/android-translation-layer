@@ -309,8 +309,12 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public Display getDisplay() {
-		return new Display();
+		/* Same Display object every call, as AOSP (identity is compared
+		 * by some apps); one window per ATL process. */
+		return singleDisplay;
 	}
+
+	private static final Display singleDisplay = new Display();
 
 	public final void runOnUiThread(Runnable action) {
 		if (Looper.myLooper() == Looper.getMainLooper()) {
