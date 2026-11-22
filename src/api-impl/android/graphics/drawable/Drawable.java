@@ -333,6 +333,11 @@ public class Drawable {
 				drawable.inflate(resources, parser, attrs, theme);
 				return drawable;
 			}
+			case "rotate": {
+				RotateDrawable drawable = new RotateDrawable();
+				drawable.inflate(resources, parser, attrs, theme);
+				return drawable;
+			}
 			case "animated-vector": {
 				return new AnimatedVectorDrawable();
 			}
