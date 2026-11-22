@@ -270,9 +270,12 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	public void setContentView(int layoutResID) throws Exception {
 		Slog.i(TAG, "- setContentView - yay!");
 
-		root_view = getLayoutInflater().inflate(layoutResID, null, false);
+		// Window inflates into its content ViewGroup with attachToRoot=true, like
+		// AOSP's PhoneWindow: layouts with a <merge> root have no View of their
+		// own and only work that way.
+		window.setContentView(layoutResID);
+		root_view = window.getDecorView();
 
-		window.setContentView(root_view);
 		onContentChanged();
 	}
 
@@ -730,7 +733,7 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public ActionBar getActionBar() {
-		return null;
+		return window.getActionBar();
 	}
 
 	@Override
