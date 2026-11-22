@@ -970,6 +970,13 @@ public class View implements Drawable.Callback {
 	private int[] drawableState;
 	private boolean duplicateParentState = false;
 
+	// android:fitsSystemWindows / setFitsSystemWindows(). ATL has no system
+	// windows (no status or navigation bar to inset), so this only records the
+	// state apps ask for; it used to be hardcoded true, which made apps that
+	// assert !getFitsSystemWindows() before installing a window insets listener
+	// (e.g. Gramophone's enableEdgeToEdgePaddingListener) abort at startup.
+	private boolean fitsSystemWindows = false;
+
 	private Drawable background;
 	private int backgroundTint = 0;
 	private int mForegroundGravity = Gravity.START | Gravity.TOP;
@@ -1145,6 +1152,7 @@ public class View implements Drawable.Callback {
 			setStateListAnimator(AnimatorInflater.loadStateListAnimator(context, resId));
 		}
 		duplicateParentState = a.getBoolean(com.android.internal.R.styleable.View_duplicateParentState, false);
+		fitsSystemWindows = a.getBoolean(com.android.internal.R.styleable.View_fitsSystemWindows, false);
 		a.recycle();
 	}
 
@@ -1985,7 +1993,12 @@ public class View implements Drawable.Callback {
 
 	public int getOverScrollMode() { return 0; }
 
-	public void setFitsSystemWindows(boolean fitsSystemWindows) {}
+	public void setFitsSystemWindows(boolean fitsSystemWindows) {
+		if (this.fitsSystemWindows != fitsSystemWindows) {
+			this.fitsSystemWindows = fitsSystemWindows;
+			requestLayout();
+		}
+	}
 
 	public void setWillNotDraw(boolean value) {}
 
@@ -2283,7 +2296,7 @@ public class View implements Drawable.Callback {
 		return importantForAccessibility;
 	}
 
-	public boolean getFitsSystemWindows() { return true; }
+	public boolean getFitsSystemWindows() { return fitsSystemWindows; }
 
 	public void setOnApplyWindowInsetsListener(View.OnApplyWindowInsetsListener l) {}
 
