@@ -28,7 +28,9 @@ public abstract class CountDownTimer {
 			onFinish();
 		} else {
 			stopTimeInFuture = SystemClock.elapsedRealtime() + millisInFuture;
-			handler.postDelayed(tickRunnable, countDownInterval);
+			// AOSP start() sends the first message immediately, so
+			// onTick(about millisInFuture) fires right away, then per interval.
+			handler.post(tickRunnable);
 		}
 		return this;
 	}
