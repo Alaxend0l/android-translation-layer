@@ -173,9 +173,42 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 
 		for (Fragment fragment : fragments) {
 			fragment.onCreate(savedInstanceState);
+			fragments_created.add(fragment);
 		}
 
 		return;
+	}
+
+	/* Fragments whose onCreate() the loop above has already run. The loop
+	 * runs mid-way through the app's onCreate chain, so fragments added
+	 * during that chain (androidx lifecycle's ReportFragment, added by
+	 * FragmentActivity/LifecycleDispatcher.onCreate) are not in it yet and
+	 * still need onCreate() before onActivityCreated() - AOSP brings a
+	 * fragment added during onCreate all the way to ACTIVITY_CREATED in
+	 * the dispatchActivityCreated() pass. */
+	private final List<Fragment> fragments_created = new ArrayList<>();
+
+	/* Called from api-impl-jni (activity_start) right after the app's
+	 * onCreate chain returns, mirroring Activity.performCreate()'s
+	 * mFragments.dispatchActivityCreated() (which in AOSP runs after the
+	 * onCreate callback and before onActivityPostCreated). Delivers
+	 * onActivityCreated() to framework fragments - the only way androidx
+	 * lifecycle's pre-API-29 ReportFragment dispatches ON_CREATE to the
+	 * activity's LifecycleRegistry; without it the registry jumps
+	 * INITIALIZED->STARTED at onStart and replays ON_CREATE inside the
+	 * ON_START pass, breaking late ActivityResultRegistry registrations
+	 * (Phonograph Plus intro, "LifecycleOwners must call register before
+	 * they are STARTED"). */
+	@Export
+	private void dispatchFragmentsActivityCreated(Bundle savedInstanceState) {
+		/* iterate a snapshot: a fragment's onActivityCreated() may add more */
+		for (Fragment fragment : new ArrayList<>(fragments)) {
+			if (!fragments_created.contains(fragment)) {
+				fragments_created.add(fragment);
+				fragment.onCreate(savedInstanceState);
+			}
+			fragment.onActivityCreated(savedInstanceState);
+		}
 	}
 
 	@Export

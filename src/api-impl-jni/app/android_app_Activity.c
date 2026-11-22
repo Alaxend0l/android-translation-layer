@@ -180,6 +180,13 @@ void activity_start(JNIEnv *env, jobject activity_object)
 	/* -- run the activity's onCreate -- */
 	J__Activity__onCreate(env, activity_object, NULL);
 	ATL_LIFECYCLE_CHECK(env);
+	/* AOSP Activity.performCreate() runs mFragments.dispatchActivityCreated()
+	 * after the onCreate callback returns and before onActivityPostCreated;
+	 * that is where framework fragments added during onCreate (androidx
+	 * lifecycle's ReportFragment on minSdk < 29) deliver ON_CREATE to the
+	 * activity's LifecycleRegistry. Same place here. */
+	J__Activity__dispatchFragmentsActivityCreated(env, activity_object, NULL);
+	ATL_LIFECYCLE_CHECK(env);
 	J__Activity__dispatchActivityPostCreated(env, activity_object);
 	ATL_LIFECYCLE_CHECK(env);
 
