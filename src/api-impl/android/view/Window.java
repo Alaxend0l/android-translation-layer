@@ -151,7 +151,9 @@ public class Window {
 	}
 
 	public View peekDecorView() {
-		return null;
+		// AOSP returns the decor view once it exists; ATL builds it in the
+		// Window constructor, so it always does.
+		return decorView;
 	}
 
 	public WindowManager.LayoutParams getAttributes() {
