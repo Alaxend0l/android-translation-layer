@@ -99,7 +99,13 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 				System.err.println("Failed to find main Activity");
 			System.exit(1);
 		}
-		return internalCreateActivity(className, native_window, uri != null ? new Intent("android.intent.action.VIEW", uri) : new Intent());
+		// A launcher start on Android carries action=MAIN and category=LAUNCHER;
+		// apps switch on getIntent().getAction() (org.billthefarmer.editor does at
+		// Editor.onCreate), so an empty Intent here made them throw
+		// NullPointerException on the switch selector.
+		return internalCreateActivity(className, native_window,
+		                              uri != null ? new Intent(Intent.ACTION_VIEW, uri)
+		                                          : new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER));
 	}
 
 	public Activity() {
