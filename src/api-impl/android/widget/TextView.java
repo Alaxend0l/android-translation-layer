@@ -35,6 +35,7 @@ public class TextView extends View {
 	private ColorStateList colors = new ColorStateList(new int[][] {new int[0]}, new int[1]);
 	private int curTextColor;
 	private CharSequence text = "";
+	private CharSequence hint = null;
 	private int inputType = android.text.InputType.TYPE_NULL;
 	private int imeOptions = 0; // EditorInfo.IME_NULL
 	private TransformationMethod transformationMethod;
@@ -145,7 +146,10 @@ public class TextView extends View {
 
 	public void setText(CharSequence text, BufferType type) {
 		this.text = text == null ? "" : text;
-		native_setText(text != null ? displayed(text).toString() : null);
+		if (hint != null && this.text.length() == 0)
+			native_setText(hint.toString());
+		else
+			native_setText(text != null ? displayed(text).toString() : null);
 
 		if (text instanceof android.text.Spanned)
 			native_set_markup(1);
@@ -463,7 +467,7 @@ public class TextView extends View {
 		return new BaseMovementMethod();
 	}
 
-	public CharSequence getHint() { return "HINT"; }
+	public CharSequence getHint() { return hint; }
 
 	public int getMinHeight() { return 0; }
 	public int getMinWidth() { return 0; }
@@ -545,7 +549,14 @@ public class TextView extends View {
 		setCompoundDrawables(left, top, right, bottom);
 	}
 
-	public void setHint(CharSequence s) {}
+	public void setHint(CharSequence s) {
+		/* AOSP paints the hint (in hintColors) whenever the text is empty.
+		 * ATL has no hint styling, but painting it as ordinary text still
+		 * beats showing nothing; styling is a separate gap. */
+		this.hint = s;
+		if (this.text.length() == 0)
+			native_setText(s != null ? s.toString() : null);
+	}
 
 	public Drawable[] getCompoundDrawablesRelative() {
 		/* LTR only, same as setCompoundDrawablesRelative */
