@@ -145,6 +145,7 @@ srcs = [
 	'android/content/SharedPreferences.java',
 	'android/content/SyncResult.java',
 	'android/content/SyncStats.java',
+	'android/content/SyncStatusObserver.java',
 	'android/content/UriMatcher.java',
 	'android/content/pm/ActivityInfo.java',
 	'android/content/pm/ApplicationInfo.java',

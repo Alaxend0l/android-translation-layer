@@ -6,7 +6,24 @@ public class AudioManager {
 	public static final String PROPERTY_OUTPUT_FRAMES_PER_BUFFER = "android.media.property.OUTPUT_FRAMES_PER_BUFFER";
 	public static final String PROPERTY_OUTPUT_SAMPLE_RATE = "android.media.property.OUTPUT_SAMPLE_RATE";
 
+	public static final int STREAM_VOICE_CALL = 0x0;
+	public static final int STREAM_SYSTEM = 0x1;
+	public static final int STREAM_RING = 0x2;
 	public static final int STREAM_MUSIC = 0x3;
+	public static final int STREAM_ALARM = 0x4;
+	public static final int STREAM_NOTIFICATION = 0x5;
+	public static final int STREAM_BLUETOOTH_SCO = 0x6;
+	public static final int STREAM_SYSTEM_ENFORCED = 0x7;
+	public static final int STREAM_DTMF = 0x8;
+	public static final int STREAM_TTS = 0x9;
+
+	public static final int RINGER_MODE_SILENT = 0;
+	public static final int RINGER_MODE_VIBRATE = 1;
+	public static final int RINGER_MODE_NORMAL = 2;
+
+	public static final int ADJUST_LOWER = -1;
+	public static final int ADJUST_SAME = 0;
+	public static final int ADJUST_RAISE = 1;
 
 	private native void nativeSetStreamVolume(int volume);
 
@@ -51,12 +68,32 @@ public class AudioManager {
 	public static final int GET_DEVICES_OUTPUTS = 0x0002;
 	public static final int GET_DEVICES_ALL = GET_DEVICES_OUTPUTS | GET_DEVICES_INPUTS;
 
+	// AOSP keeps per-stream volumes in AudioService; ATL has no system sound
+	// mixer, so an in-memory table is the honest model. Indexed by streamType.
+	private static final int STREAM_COUNT = 10;
+	private static final int[] stream_volumes = new int[STREAM_COUNT];
+	static {
+		for (int i = 0; i < STREAM_COUNT; i++)
+			stream_volumes[i] = 100; // = getStreamMaxVolume(i)
+	}
+	private static int ringer_mode = RINGER_MODE_NORMAL;
+
 	public int getRingerMode() {
-		return 0;
+		return ringer_mode;
+	}
+
+	public void setRingerMode(int ringerMode) {
+		ringer_mode = ringerMode;
 	}
 
 	public int getStreamVolume(int streamType) {
-		return 0; // arbitrary, shouldn't matter too much?
+		if (streamType < 0 || streamType >= STREAM_COUNT)
+			return 0;
+		return stream_volumes[streamType];
+	}
+
+	public int getStreamMinVolume(int streamType) {
+		return 0;
 	}
 
 	public int getStreamMaxVolume(int streamType) {
@@ -90,6 +127,27 @@ public class AudioManager {
 	}
 
 	public void setStreamVolume(int streamType, int index, int flags) {
+		if (streamType < 0 || streamType >= STREAM_COUNT)
+			return;
+		int max = getStreamMaxVolume(streamType);
+		if (index < 0)
+			index = 0;
+		if (index > max)
+			index = max;
+		stream_volumes[streamType] = index;
+		nativeSetStreamVolume(index);
+	}
+
+	public void adjustStreamVolume(int streamType, int direction, int flags) {
+		if (streamType < 0 || streamType >= STREAM_COUNT)
+			return;
+		int max = getStreamMaxVolume(streamType);
+		int index = stream_volumes[streamType] + direction;
+		if (index < 0)
+			index = 0;
+		if (index > max)
+			index = max;
+		stream_volumes[streamType] = index;
 		nativeSetStreamVolume(index);
 	}
 

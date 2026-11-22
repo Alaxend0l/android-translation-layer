@@ -25,6 +25,21 @@ public class ContentResolver {
 
 	public static final String SYNC_EXTRAS_IGNORE_SETTINGS = "ignore_settings";
 
+	public static final int SYNC_OBSERVER_TYPE_STATUS = 1 << 0;
+	public static final int SYNC_OBSERVER_TYPE_SETTINGS = 1 << 1;
+	public static final int SYNC_OBSERVER_TYPE_PENDING = 1 << 2;
+	public static final int SYNC_OBSERVER_TYPE_ACTIVE = 1 << 3;
+	public static final int SYNC_OBSERVER_TYPE_ANY = Integer.MAX_VALUE;
+
+	// ATL has no sync service: a status-change listener can never fire, so the
+	// callback is only kept as the opaque handle AOSP returns.
+	public static Object addStatusChangeListener(int mask, SyncStatusObserver callback) {
+		return callback;
+	}
+
+	public static void removeStatusChangeListener(Object handle) {
+	}
+
 	public final void registerContentObserver(Uri uri, boolean notifyForDescendants, ContentObserver observer) {
 	}
 	public final void unregisterContentObserver(ContentObserver observer) {
