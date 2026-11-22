@@ -423,7 +423,7 @@ public final class SharedPreferencesImpl implements SharedPreferences {
 					for (Map.Entry<String, Object> e : mModified.entrySet()) {
 						String k = e.getKey();
 						Object v = e.getValue();
-						if (v == this) { // magic value for a removal mutation
+						if (v == this || v == null) { // magic value or null = removal (AOSP)
 							if (!mMap.containsKey(k)) {
 								continue;
 							}
