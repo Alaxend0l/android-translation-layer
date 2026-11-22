@@ -719,7 +719,10 @@ public class View implements Drawable.Callback {
 	}
 
 	public interface OnApplyWindowInsetsListener {
-		// TODO
+		/* AOSP callback (the body here used to be `// TODO`, so apps
+		 * registering a listener had it stored nowhere and called
+		 * nowhere). */
+		WindowInsets onApplyWindowInsets(View v, WindowInsets insets);
 	}
 
 	public interface OnLayoutChangeListener {
@@ -2366,7 +2369,24 @@ public class View implements Drawable.Callback {
 
 	public boolean getFitsSystemWindows() { return fitsSystemWindows; }
 
-	public void setOnApplyWindowInsetsListener(View.OnApplyWindowInsetsListener l) {}
+	private OnApplyWindowInsetsListener on_apply_window_insets_listener;
+
+	public void setOnApplyWindowInsetsListener(View.OnApplyWindowInsetsListener l) {
+		on_apply_window_insets_listener = l;
+	}
+
+	public WindowInsets dispatchApplyWindowInsets(WindowInsets insets) {
+		/* AOSP: listener if set, else onApplyWindowInsets(); a null
+		 * result from the listener means "fully consumed", matched here
+		 * with an empty WindowInsets. ATL has no inset source of its
+		 * own (no system bars), so this runs only when apps dispatch
+		 * manually - the fitsSystemWindows plumbing stays a gap. */
+		if (on_apply_window_insets_listener != null) {
+			WindowInsets r = on_apply_window_insets_listener.onApplyWindowInsets(this, insets);
+			return r != null ? r : new WindowInsets();
+		}
+		return onApplyWindowInsets(insets);
+	}
 
 	public final boolean isFocusable() { return atl_focusable; }
 	public boolean isClickable() { return clickable; }
