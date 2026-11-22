@@ -675,6 +675,7 @@ srcs = [
 	'android/view/ViewOverlay.java',
 	'android/view/ViewParent.java',
 	'android/view/ViewPropertyAnimator.java',
+	'android/view/ViewRootImpl.java',
 	'android/view/ViewStub.java',
 	'android/view/ViewTreeObserver.java',
 	'android/view/Window.java',

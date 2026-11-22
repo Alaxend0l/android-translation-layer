@@ -2372,6 +2372,44 @@ public class View implements Drawable.Callback {
 		return view;
 	}
 
+	// See ViewRootImpl: ATL has no Android window session (GTK windows), but
+	// compat code reflects on getViewRootImpl()/mAttachInfo, so the root view
+	// of each ATL window carries one describing that window.
+	ViewRootImpl mAtlViewRootImpl;
+
+	/**
+	 * AOSP: the ViewRootImpl of the window this view is attached to, or null
+	 * when the view is not attached to a window. ATL reports the same null
+	 * for detached views; attached views get the per-window stand-in whose
+	 * visible insets are the window frame (an ATL window has no system bars,
+	 * which is the state AOSP reports those insets for).
+	 */
+	public final ViewRootImpl getViewRootImpl() {
+		if (!isAttachedToWindow())
+			return null;
+		View root = getRootView();
+		if (root.mAtlViewRootImpl == null)
+			root.mAtlViewRootImpl = new ViewRootImpl(root);
+		root.mAtlViewRootImpl.mAttachInfo.mVisibleInsets.set(0, 0, root.getWidth(), root.getHeight());
+		return root.mAtlViewRootImpl;
+	}
+
+	/**
+	 * AOSP's per-window attach state shared by the views of a window. ATL
+	 * keeps only the parts compat code reads reflectively
+	 * (ViewRootImpl.mAttachInfo, AttachInfo.mVisibleInsets); mVisibleInsets
+	 * tracks the visible frame of the ATL window, i.e. its full size, since
+	 * ATL windows are never partly covered by system bars.
+	 */
+	static final class AttachInfo {
+		final ViewRootImpl mViewRootImpl;
+		final Rect mVisibleInsets = new Rect();
+
+		AttachInfo(ViewRootImpl viewRootImpl) {
+			mViewRootImpl = viewRootImpl;
+		}
+	}
+
 	public boolean isShown() { return true; }
 
 	public int getWindowVisibility() { return VISIBLE; }
