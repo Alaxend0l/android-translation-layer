@@ -69,4 +69,16 @@ public class ConnectivityManager {
 	public ProxyInfo getDefaultProxy() { return null; }
 
 	public LinkProperties getLinkProperties(Network network) { return null; }
+
+	// AOSP values (ConnectivityManager.RESTRICT_BACKGROUND_STATUS_*).
+	public static final int RESTRICT_BACKGROUND_STATUS_INVALID = 0;
+	public static final int RESTRICT_BACKGROUND_STATUS_DISABLED = 1;
+	public static final int RESTRICT_BACKGROUND_STATUS_ENABLED = 2;
+	public static final int RESTRICT_BACKGROUND_STATUS_WHITELISTED = 3;
+
+	public int getRestrictBackgroundStatus() {
+		// ATL has no data-saver / background-restriction state; DISABLED is
+		// what Android reports when data saver is off.
+		return RESTRICT_BACKGROUND_STATUS_DISABLED;
+	}
 }
