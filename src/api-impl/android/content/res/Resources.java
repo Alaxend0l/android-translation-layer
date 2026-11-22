@@ -111,8 +111,10 @@ public class Resources {
 	private ThemedResourceCache<Drawable.ConstantState> mDrawableCacheInternal = new ThemedResourceCache<Drawable.ConstantState>() {
 		@Override
 		protected boolean shouldInvalidateEntry(Drawable.ConstantState entry, int configChanges) {
-			// TODO Auto-generated method stub
-			throw new UnsupportedOperationException("Unimplemented method 'shouldInvalidateEntry'");
+			/* AOSP DrawableCache: keep the entry unless its changing
+			 * configurations intersect the config change (same rule
+			 * ConfigurationBoundResourceCache in this package uses). */
+			return Configuration.needNewResources(configChanges, entry.getChangingConfigurations());
 		}
 	};
 	/*package*/ Object mDrawableCache = Build.VERSION.SDK_INT < 23
@@ -122,8 +124,8 @@ public class Resources {
 	/*package*/ final ThemedResourceCache<Drawable.ConstantState> mColorDrawableCache = new ThemedResourceCache<Drawable.ConstantState>() {
 		@Override
 		protected boolean shouldInvalidateEntry(Drawable.ConstantState entry, int configChanges) {
-			// TODO Auto-generated method stub
-			throw new UnsupportedOperationException("Unimplemented method 'shouldInvalidateEntry'");
+			/* AOSP DrawableCache, see mDrawableCacheInternal above. */
+			return Configuration.needNewResources(configChanges, entry.getChangingConfigurations());
 		}
 	};
 	/*package*/ boolean mPreloading;
