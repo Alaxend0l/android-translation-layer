@@ -1366,7 +1366,9 @@ public class View implements Drawable.Callback {
 	protected native void nativeSetOnClickListener(long widget);
 
 	private OnScrollChangeListener on_scroll_change_listener = null;
-	public void setOnScrollChangeListener(OnScrollChangeListener l) {}
+	public void setOnScrollChangeListener(OnScrollChangeListener l) {
+		on_scroll_change_listener = l;
+	}
 
 	public /*native*/ void setOnSystemUiVisibilityChangeListener(OnSystemUiVisibilityChangeListener l) {}
 	public final int getWidth() {
@@ -1649,16 +1651,27 @@ public class View implements Drawable.Callback {
 	}
 
 	public void scrollTo(int x, int y) {
-		scrollX = x;
-		scrollY = y;
-		invalidate();
+		// AOSP does nothing when the position is unchanged, then routes the
+		// change through onScrollChanged (which notifies the listener).
+		if (scrollX != x || scrollY != y) {
+			int oldX = scrollX;
+			int oldY = scrollY;
+			scrollX = x;
+			scrollY = y;
+			onScrollChanged(scrollX, scrollY, oldX, oldY);
+			invalidate();
+		}
 	}
 
 	protected int computeVerticalScrollOffset() {
 		return -1;
 	}
 
-	protected void onScrollChanged(int l, int t, int oldl, int oldt) {}
+	protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+		if (on_scroll_change_listener != null) {
+			on_scroll_change_listener.onScrollChange(this, l, t, oldl, oldt);
+		}
+	}
 
 	public void getLocationOnScreen(int[] location) {
 		Rect rect = new Rect();
@@ -2803,10 +2816,10 @@ public class View implements Drawable.Callback {
 	public AccessibilityDelegate getAccessibilityDelegate() { return null; }
 
 	public void setScrollX(int value) {
-		this.scrollX = value;
+		scrollTo(value, scrollY);
 	}
 	public void setScrollY(int value) {
-		this.scrollY = value;
+		scrollTo(scrollX, value);
 	}
 
 	@Export
