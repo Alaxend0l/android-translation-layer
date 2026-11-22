@@ -273,6 +273,16 @@ public final class ContextImpl extends Context {
 	}
 
 	@Override
+	public ComponentName startForegroundService(Intent intent) {
+		// AOSP starts the service like startService and arms a timeout by which
+		// the service must call startForeground() (ANR/crash otherwise). ATL has
+		// no ActiveServices timeout and Service.startForeground is an in-process
+		// record-keeping call, so starting via startService is the closest real
+		// behaviour; the service's own startForeground() call still lands.
+		return startService(intent);
+	}
+
+	@Override
 	public boolean bindService(Intent intent, ServiceConnection serviceConnection, int flags) {
 		// Two way Messenger interface for GCM. Request and response are send over Messenger.
 		// Wrap it on top of the old intent interface for compatibility with our gcm_service

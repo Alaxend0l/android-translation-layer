@@ -391,6 +391,9 @@ public abstract class Context {
 	@Export
 	public abstract ComponentName startService(Intent intent);
 
+	@Export
+	public abstract ComponentName startForegroundService(Intent intent);
+
 	// TODO: do these both work? make them look more alike
 	public FileInputStream openFileInput(String name) throws FileNotFoundException {
 		if (Log.isLoggable(TAG, Log.VERBOSE))
