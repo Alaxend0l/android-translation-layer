@@ -268,8 +268,17 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 
 	public void attachViewToParent(View view, int index, LayoutParams params) {
 		if (!detachedChildren.remove(view)) {
+			/* Never detached (addView/detachViewFromParent pairing misuse,
+			 * e.g. Recycler views that re-attach without detaching):
+			 * addViewInternal already inserts the view into the child list
+			 * *and* the native widget, so returning here is required - the
+			 * tail below would insert it a second time (the old bug). */
 			addViewInternal(view, index, params, false);
+			return;
 		}
+		/* Was detached with detachViewFromParent: it stayed parented and
+		 * native-attached, only missing from `children` - the tail re-adds
+		 * it at the right slot. */
 		if (!checkLayoutParams(params))
 			params = generateLayoutParams(params);
 
