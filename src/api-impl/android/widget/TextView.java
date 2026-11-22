@@ -323,7 +323,21 @@ public class TextView extends View {
 	public void setHintTextColor(int i) {}
 	public void setLinkTextColor(ColorStateList colorStateList) {}
 
-	public void setSingleLine() {}
+	public void setSingleLine() {
+		singleLine = true;
+	}
+
+	/* AOSP single-line state: me.zhanghai.android.files probes
+	 * isSingleLine[] reflectively from its RecyclerView layout path, so
+	 * the missing method showed up as a swallowed NoSuchMethodException
+	 * in every run. State is stored and read back; ATL's line wrapping
+	 * has no rendering consequence from this flag yet. */
+	private boolean singleLine = false;
+
+	public boolean isSingleLine() {
+		return singleLine;
+	}
+
 	public void setSelection(int i) {}
 	public void setSelection(int i, int j) {}
 
@@ -498,7 +512,9 @@ public class TextView extends View {
 		return curTextColor;
 	}
 
-	public void setSingleLine(boolean singleLine) {}
+	public void setSingleLine(boolean singleLine) {
+		this.singleLine = singleLine;
+	}
 
 	public int getCompoundPaddingLeft() { return 0; }
 
