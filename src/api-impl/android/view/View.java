@@ -1767,8 +1767,30 @@ public class View implements Drawable.Callback {
 	 * and friends compare tokens by identity). Was a fresh Binder per call. */
 	private static final IBinder windowToken = new Binder();
 
+	/* AOSP hands out a null token until the view tree is attached to the
+	 * window by ViewRootImpl.setView() - which happens after onCreate -
+	 * and library code depends on that: androidx ViewPager.populate()
+	 * returns early while getWindowToken() == null, so "mutate the
+	 * adapter, then notifyDataSetChanged" sequences during onCreate (AppIntro,
+	 * used by Phonograph Plus' intro) are legal on Android but crashed on
+	 * ATL, which always had a token:
+	 * IllegalStateException "PagerAdapter changed the adapter's contents
+	 * without calling notifyDataSetChanged" (queue item 64).
+	 * ATL has no attach call; a window-driven (JNI) layout of the view or
+	 * an ancestor is the closest equivalent: the GTK allocation that runs
+	 * layoutInternal happens on the first frame, i.e. after onCreate. */
+	private boolean windowTokenAttached = false;
+
 	public IBinder getWindowToken() {
-		return windowToken;
+		/* The token is per window: attached if this view or any ancestor
+		 * has been laid out by the window. */
+		View v = this;
+		while (v != null) {
+			if (v.windowTokenAttached)
+				return windowToken;
+			v = v.parent instanceof View ? (View) v.parent : null;
+		}
+		return null;
 	}
 
 	public void getLocationInWindow(int[] location) {
@@ -1967,6 +1989,10 @@ public class View implements Drawable.Callback {
 	/** Helper function to be called from GTKs LayoutManager via JNI */
 	@Export
 	private void layoutInternal(int width, int height) {
+		/* Called from the JNI/GTK entry: the window is driving this view's
+		 * layout, which is ATL's moment of "attached to window" (see
+		 * getWindowToken). */
+		windowTokenAttached = true;
 		in_layout = true;
 		// if the layout is triggered from a native widget, we might not have measured yet
 		if (!(parent instanceof ViewGroup) && (width != getMeasuredWidth() || height != getMeasuredHeight())) {
