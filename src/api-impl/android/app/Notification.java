@@ -62,6 +62,14 @@ public class Notification implements Parcelable {
 	boolean ongoing;
 	Style style;
 
+	public Notification() {
+		// AOSP Notification() runs init(), which creates extras; Android code
+		// relies on notification.extras being non-null on a constructed
+		// Notification (androidx.media MediaNotificationManager writes
+		// "android.mediaSession" into it, Fossify Music reads it back).
+		extras = new Bundle();
+	}
+
 	public String toString() {
 		return "Notification [" + title + ", " + text + ", " + actions + "]";
 	}
@@ -173,7 +181,12 @@ public class Notification implements Parcelable {
 			return this;
 		}
 
-		public Builder setExtras(Bundle extras) { return this; }
+		public Builder setExtras(Bundle extras) {
+			// AOSP stores it; a built Notification never has null extras, so
+			// setExtras(null) means empty.
+			notification.extras = extras != null ? extras : new Bundle();
+			return this;
+		}
 
 		public Builder setLargeIcon(Icon icon) { return this; }
 
@@ -195,7 +208,16 @@ public class Notification implements Parcelable {
 
 		public Builder setTicker(CharSequence tickerText) { return this; }
 
-		public Builder addExtras(Bundle bundle) { return this; }
+		public Builder addExtras(Bundle bundle) {
+			// AOSP merges the bundle into the notification's extras.
+			if (bundle != null) {
+				if (notification.extras == null) {
+					notification.extras = new Bundle();
+				}
+				notification.extras.putAll(bundle);
+			}
+			return this;
+		}
 
 		public Notification build() {
 			return notification;
@@ -204,9 +226,16 @@ public class Notification implements Parcelable {
 
 	public static class Action {
 
+		public Bundle extras;
+
 		int icon;
 		String title;
 		PendingIntent intent;
+
+		public Action() {
+			// AOSP Action() creates extras; never null afterwards.
+			extras = new Bundle();
+		}
 
 		public String toString() {
 			return "Action [" + icon + ", " + title + ", " + intent + "]";
@@ -226,7 +255,16 @@ public class Notification implements Parcelable {
 				this(0, title, intent);
 			}
 
-			public Builder addExtras(Bundle extras) { return this; }
+			public Builder addExtras(Bundle extras) {
+				// AOSP merges into the action's extras.
+				if (extras != null) {
+					if (action.extras == null) {
+						action.extras = new Bundle();
+					}
+					action.extras.putAll(extras);
+				}
+				return this;
+			}
 
 			public Builder addRemoteInput(RemoteInput remoteInput) { return this; }
 
