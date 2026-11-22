@@ -620,7 +620,12 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 	}
 
 	public void offsetChildrenTopAndBottom(int offset) {
-		// FIXME
+		/* AOSP: shift every child's top/bottom; callers (AbsListView/GridView
+		 * gap correction, scrolling) invalidate themselves afterwards. */
+		final int count = getChildCount();
+		for (int i = 0; i < count; i++) {
+			getChildAt(i).offsetTopAndBottom(offset);
+		}
 	}
 
 	private native void native_offsetRect(long from_widget, long to_widget, Rect rect);
