@@ -187,6 +187,13 @@ public abstract class Context {
 		return new Intent();
 	}
 
+	public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter, int flags) {
+		// API 33 variant with RECEIVER_EXPORTED / RECEIVER_NOT_EXPORTED (and
+		// RECEIVER_VISIBLE_TO_INSTANT_APPS) flags. ATL broadcasts are app-local,
+		// so there is no cross-app visibility to enforce; behaviour is the same.
+		return registerReceiver(receiver, filter);
+	}
+
 	public Looper getMainLooper() {
 		return Looper.getMainLooper();
 	}
