@@ -50,6 +50,9 @@ public class ConnectivityManager {
 
 		NetworkCapabilities capabilities = new NetworkCapabilities();
 		capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+		// AOSP marks a network that GNetworkMonitor considers reachable as validated; apps and
+		// WorkManager's CONNECTED constraint gate on it, so it must be present here.
+		capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
 
 		if (!isActiveNetworkMetered())
 			capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);

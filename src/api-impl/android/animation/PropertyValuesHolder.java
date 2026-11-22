@@ -141,11 +141,19 @@ public class PropertyValuesHolder {
 		} else if (values_float != null) {
 			int i = (int)(fraction * (values_float.length - 1));
 			float f = fraction * (values_float.length - 1) - i;
-			value = values_float[i] * (1 - f) + ((f != 0.f) ? values_float[i + 1] * f : 0.f);
+			if (evaluator != null) {
+				value = evaluator.evaluate(f, values_float[i], values_float[i >= values_float.length - 1 ? i : i + 1]);
+			} else {
+				value = values_float[i] * (1 - f) + ((f != 0.f) ? values_float[i + 1] * f : 0.f);
+			}
 		} else if (values_int != null) {
 			int i = (int)(fraction * (values_int.length - 1));
 			float f = fraction * (values_int.length - 1) - i;
-			value = (int)(values_int[i] * (1 - f) + ((f != 0.f) ? values_int[i + 1] * f : 0.f) + 0.5f);
+			if (evaluator != null) {
+				value = evaluator.evaluate(f, values_int[i], values_int[i >= values_int.length - 1 ? i : i + 1]);
+			} else {
+				value = (int)(values_int[i] * (1 - f) + ((f != 0.f) ? values_int[i + 1] * f : 0.f) + 0.5f);
+			}
 		} else {
 			Log.e("PropertyValuesHolder", "No values set");
 		}
@@ -161,6 +169,7 @@ public class PropertyValuesHolder {
 		propertyValuesHolder.values_int = values_int;
 		propertyValuesHolder.values_object = values_object;
 		propertyValuesHolder.values_keyframe = values_keyframe;
+		propertyValuesHolder.evaluator = evaluator;
 		return propertyValuesHolder;
 	}
 

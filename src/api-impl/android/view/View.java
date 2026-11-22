@@ -1723,7 +1723,7 @@ public class View implements Drawable.Callback {
 	}
 
 	public void addOnAttachStateChangeListener(OnAttachStateChangeListener l) {
-		onAttachStateChangeListener = l;
+		attach_state_listeners.add(l);
 	}
 
 	public Context getContext() {
@@ -2325,7 +2325,11 @@ public class View implements Drawable.Callback {
 		postInvalidate();
 	}
 
-	public void setPaddingRelative(int start, int top, int end, int bottom) {}
+	public void setPaddingRelative(int start, int top, int end, int bottom) {
+		// This View is always LTR (getLayoutDirection() returns LAYOUT_DIRECTION_LTR),
+		// so start maps to left and end maps to right.
+		setPadding(start, top, end, bottom);
+	}
 
 	private native boolean nativeIsAttachedToWindow(long widget);
 	public boolean isAttachedToWindow() {
@@ -2429,8 +2433,8 @@ public class View implements Drawable.Callback {
 
 	@Export
 	protected void onAttachedToWindow() {
-		if (onAttachStateChangeListener != null) {
-			onAttachStateChangeListener.onViewAttachedToWindow(this);
+		for (OnAttachStateChangeListener l : attach_state_listeners) {
+			l.onViewAttachedToWindow(this);
 		}
 		if (keepScreenOn)
 			native_keep_screen_on(widget, true);
@@ -2442,8 +2446,8 @@ public class View implements Drawable.Callback {
 
 	@Export
 	protected void onDetachedFromWindow() {
-		if (onAttachStateChangeListener != null) {
-			onAttachStateChangeListener.onViewDetachedFromWindow(this);
+		for (OnAttachStateChangeListener l : attach_state_listeners) {
+			l.onViewDetachedFromWindow(this);
 		}
 		if (keepScreenOn)
 			native_keep_screen_on(widget, false);
@@ -2496,11 +2500,10 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	private OnAttachStateChangeListener onAttachStateChangeListener;
+	private final CopyOnWriteArrayList<OnAttachStateChangeListener> attach_state_listeners =
+			new CopyOnWriteArrayList<OnAttachStateChangeListener>();
 	public void removeOnAttachStateChangeListener(OnAttachStateChangeListener listener) {
-		if (onAttachStateChangeListener == listener) {
-			onAttachStateChangeListener = null;
-		}
+		attach_state_listeners.remove(listener);
 	}
 
 	@Export

@@ -9,6 +9,7 @@ import android.graphics.ColorFilter;
 import android.graphics.Matrix;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.View;
@@ -58,7 +59,7 @@ public class ImageView extends View {
 			return;
 		}
 		bitmap = BitmapFactory.decodeResource(this.getResources(), resid);
-		native_setDrawable(widget, bitmap != null ? bitmap.getTexture() : 0);
+		setImageDrawable(bitmap != null ? new BitmapDrawable(getResources(), bitmap) : null);
 	}
 	public void setAdjustViewBounds(boolean adjustViewBounds) {}
 
@@ -108,7 +109,7 @@ public class ImageView extends View {
 	public void setImageMatrix(Matrix matrix) {}
 
 	public void setImageBitmap(Bitmap bitmap) {
-		native_setDrawable(widget, bitmap != null ? bitmap.getTexture() : 0);
+		setImageDrawable(bitmap != null ? new BitmapDrawable(getResources(), bitmap) : null);
 	}
 
 	/**
@@ -180,7 +181,9 @@ public class ImageView extends View {
 		ScaleType.CENTER_INSIDE,
 	};
 
-	public final void setColorFilter(int color, PorterDuff.Mode mode) {}
+	public final void setColorFilter(int color, PorterDuff.Mode mode) {
+		setColorFilter(new PorterDuffColorFilter(color, mode));
+	}
 
 	public void setImageTintList(ColorStateList tint) {
 		if (tint == null)
@@ -210,9 +213,14 @@ public class ImageView extends View {
 
 	public void setCropToPadding(boolean crop) {}
 
-	public void setColorFilter(int color) {}
+	public void setColorFilter(int color) {
+		setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
+	}
 
-	public void setColorFilter(ColorFilter cf) {}
+	public void setColorFilter(ColorFilter cf) {
+		this.colorFilter = cf;
+		setImageDrawable(drawable);
+	}
 
 	public Matrix getImageMatrix() {
 		return Matrix.IDENTITY_MATRIX;
@@ -220,6 +228,9 @@ public class ImageView extends View {
 
 	public void clearColorFilter() {
 		colorFilter = null;
+		if (drawable != null) {
+			drawable.setColorFilter(null);
+		}
 	}
 
 	@Override

@@ -4,8 +4,10 @@ import android.graphics.Color;
 
 public class ArgbEvaluator implements TypeEvaluator<Integer> {
 
+	private static final ArgbEvaluator sInstance = new ArgbEvaluator();
+
 	public static ArgbEvaluator getInstance() {
-		return null;
+		return sInstance;
 	}
 
 	@Override

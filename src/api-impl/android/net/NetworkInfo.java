@@ -47,7 +47,7 @@ public class NetworkInfo {
 	}
 
 	public String getTypeName() {
-		return "UNKNOWN";
+		return state == State.CONNECTED ? "WIFI" : "UNKNOWN";
 	}
 
 	public String getSubtypeName() {
@@ -55,7 +55,7 @@ public class NetworkInfo {
 	}
 
 	public boolean isAvailable() {
-		return false;
+		return state == State.CONNECTED;
 	}
 
 	public DetailedState getDetailedState() {

@@ -50,7 +50,15 @@ public class Button extends TextView {
 
 	@Override
 	public void setText(CharSequence text) {
-		native_setText(widget, String.valueOf(text));
+		/* AOSP: null means empty text; String.valueOf() would print "null" */
+		native_setText(widget, text == null ? "" : text.toString());
+	}
+
+	/* Route the two-arg form to our own native setter: TextView's would call
+	 * native_setText(String) and box_get_label() a GtkButton's child box. */
+	@Override
+	public void setText(CharSequence text, BufferType type) {
+		setText(text);
 	}
 
 	@Override

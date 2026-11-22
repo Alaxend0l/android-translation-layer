@@ -46,11 +46,11 @@ public class TextPaint extends Paint {
 	}
 
 	public TextPaint(int flags) {
-		super(/*flags*/);
+		super(flags);
 	}
 
 	public TextPaint(Paint p) {
-		super(/*p*/);
+		super(p);
 	}
 
 	/**
@@ -58,7 +58,7 @@ public class TextPaint extends Paint {
 	 * fields inherited from Paint.
 	 */
 	public void set(TextPaint tp) {
-		//super.set(tp);
+		super.set(tp);
 
 		bgColor = tp.bgColor;
 		baselineShift = tp.baselineShift;

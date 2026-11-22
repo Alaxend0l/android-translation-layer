@@ -16,7 +16,15 @@ public class DrawableContainer extends Drawable {
 	}
 
 	public boolean selectDrawable(int idx) {
-		if (idx >= 0 && idx < state.childCount && idx != curIndex && state.drawables[idx] != null) {
+		if (idx < 0 || idx >= state.childCount) {
+			if (curIndex == -1)
+				return false;
+			curIndex = -1;
+			native_selectChild(paintable, 0);
+			invalidateSelf();
+			return true;
+		}
+		if (idx != curIndex && state.drawables[idx] != null) {
 			curIndex = idx;
 			native_selectChild(paintable, state.drawables[idx].paintable);
 			invalidateSelf();
