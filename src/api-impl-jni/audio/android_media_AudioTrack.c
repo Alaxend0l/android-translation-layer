@@ -50,17 +50,26 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv 
 
 	/* Write parameters */
 	ret = snd_pcm_hw_params(pcm_handle, params);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("ERROR: Can't set harware parameters. %s\n", snd_strerror(ret));
+		/* No usable configuration: same STATE_UNINITIALIZED contract as the
+		 * open failure above, otherwise period_size below is garbage and the
+		 * sw params make the stream impossible to start. */
+		snd_pcm_close(pcm_handle);
+		return -1;
+	}
 
 	//snd_pcm_hw_params_free (hw_params);
 
 	/*--↓*/
-	snd_pcm_uframes_t period_size;
+	snd_pcm_uframes_t period_size = 0;
 
 	ret = snd_pcm_hw_params_get_period_size(params, &period_size, 0);
-	if (ret < 0)
+	if (ret < 0 || period_size == 0) {
 		printf("Error calling snd_pcm_hw_params_get_period_size: %s\n", snd_strerror(ret));
+		snd_pcm_close(pcm_handle);
+		return -1;
+	}
 
 	snd_pcm_sw_params_t *sw_params;
 
@@ -116,8 +125,16 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_getMinBufferSize(JNIEnv *en
 	unsigned int num_channels;
 
 	ret = snd_pcm_open(&pcm_handle, PCM_DEVICE, SND_PCM_STREAM_PLAYBACK, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		/* No output device to probe (on the phone runner the audio server
+		 * intermittently answers "Host is down"). Android's getMinBufferSize
+		 * returns ERROR (-1) when it cannot determine a size, and media3
+		 * turns that into a reported audio error; probing the unopened
+		 * handle instead segfaulted the ExoPlayer playback thread (SIGSEGV
+		 * in helper_hw_params_init, phone run pres2, 2026-11-22). */
 		printf("Error calling snd_pcm_open: %s\n", snd_strerror(ret));
+		return -1;
+	}
 
 	snd_pcm_hw_params_alloca(&params);
 	helper_hw_params_init(pcm_handle, params, sampleRateInHz, channelConfig, SND_PCM_FORMAT_S16_LE, &num_channels); // FIXME: a switch?
