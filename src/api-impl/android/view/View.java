@@ -2757,17 +2757,57 @@ public class View implements Drawable.Callback {
 	public float getRotationX() { return 0.f; }
 	public float getRotationY() { return 0.f; }
 
-	public void setScaleX(float scaleX) {}
-	public void setScaleY(float scaleY) {}
+	/* AOSP render-node transform properties (queue items 109-112). The
+	 * setters used to be empty and the getters constants, so View.SCALE_X
+	 * /SCALE_Y animators (the Property objects above feed exactly these
+	 * accessors) animated against a value that never changed and apps
+	 * reading the transform back saw 1/0. State is now stored AOSP-style,
+	 * including the unset-pivot default of width/2, height/2 (AOSP keeps
+	 * a "pivot set" flag for exactly this). Honest limitation: the gsk
+	 * draw path does not yet apply these transforms on screen (only
+	 * translationX/Y reach the JNI allocation, android_view_View.c) -
+	 * that is a separate rendering follow-up; the API state itself is
+	 * what these queue items flagged. */
+	private float scaleX = 1.f;
+	private float scaleY = 1.f;
+	private float pivotX = 0.f;
+	private float pivotY = 0.f;
+	private boolean pivotXSet = false;
+	private boolean pivotYSet = false;
 
-	public float getScaleX() { return 1.f; }
-	public float getScaleY() { return 1.f; }
+	public void setScaleX(float scaleX) {
+		this.scaleX = scaleX;
+	}
 
-	public void setPivotX(float pivot_x) {}
-	public void setPivotY(float pivot_y) {}
+	public void setScaleY(float scaleY) {
+		this.scaleY = scaleY;
+	}
 
-	public float getPivotX() { return 0.f; }
-	public float getPivotY() { return 0.f; }
+	public float getScaleX() {
+		return scaleX;
+	}
+
+	public float getScaleY() {
+		return scaleY;
+	}
+
+	public void setPivotX(float pivot_x) {
+		pivotX = pivot_x;
+		pivotXSet = true;
+	}
+
+	public void setPivotY(float pivot_y) {
+		pivotY = pivot_y;
+		pivotYSet = true;
+	}
+
+	public float getPivotX() {
+		return pivotXSet ? pivotX : getWidth() / 2f;
+	}
+
+	public float getPivotY() {
+		return pivotYSet ? pivotY : getHeight() / 2f;
+	}
 
 	public float getTranslationZ() { return 0.f; }
 
