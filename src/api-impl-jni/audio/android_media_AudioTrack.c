@@ -10,7 +10,7 @@
 
 #include "../generated_headers/android_media_AudioTrack.h"
 
-JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv *env, jobject this, jint streamType, jint rate, jint channel_config, jint audioFormat, jint buffer_size, jint mode)
+JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv *env, jobject this, jint streamType, jint rate, jint channel_config, jint audioFormat, jint buffer_size, jint mode)
 {
 
 	snd_pcm_t *pcm_handle;
@@ -25,8 +25,15 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv 
 
 	/* Open the PCM device in playback mode */
 	ret = snd_pcm_open(&pcm_handle, PCM_DEVICE, SND_PCM_STREAM_PLAYBACK, 0);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("ERROR: Can't open \"%s\" PCM device. %s\n", PCM_DEVICE, snd_strerror(ret));
+		/* Android puts the AudioTrack into STATE_UNINITIALIZED; ATL used
+		 * to keep an invalid handle here and every later snd_pcm_* call
+		 * segfaulted the caller thread (witnessed on the phone runner:
+		 * SIGSEGV on the ExoPlayer playback thread after "Host is down",
+		 * run pgram0, 2026-11-22). */
+		return -1;
+	}
 
 	snd_pcm_hw_params_alloca(&params);
 	helper_hw_params_init(pcm_handle, params, rate, channel_config, SND_PCM_FORMAT_S16_LE, &channels);
@@ -60,7 +67,12 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv 
 	snd_pcm_sw_params_malloc(&sw_params);
 	snd_pcm_sw_params_current(pcm_handle, sw_params);
 
-	snd_pcm_sw_params_set_start_threshold(pcm_handle, sw_params, (buffer_size_as_uframes_t / period_size) * period_size);
+	snd_pcm_sw_params_set_start_threshold(pcm_handle, sw_params, period_size);
+	/* One period, not "the whole buffer": Android's AudioTrack starts
+	 * consuming in real time right after play(), and media3's position
+	 * watchdog flags a non-advancing head as an underrun within ~a second
+	 * of playback start (Gramophone skip-to-next stall, phone and bazzite
+	 * scratch runs, 2026-11-22). */
 	snd_pcm_sw_params_set_avail_min(pcm_handle, sw_params, period_size);
 
 	snd_pcm_sw_params(pcm_handle, sw_params);
@@ -91,6 +103,8 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv 
 	_SET_LONG_FIELD(this, "params", _INTPTR(params));
 	_SET_INT_FIELD(this, "channels", channels_out);
 	_SET_INT_FIELD(this, "period_time", period_time);
+
+	return 0;
 }
 
 JNIEXPORT jint JNICALL Java_android_media_AudioTrack_getMinBufferSize(JNIEnv *env, jclass this_class, jint sampleRateInHz, jint channelConfig, jint audioFormat)
@@ -166,6 +180,10 @@ void periodic_update_callback(snd_async_handler_t *pcm_callback)
 
 JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1play(JNIEnv *env, jobject this)
 {
+	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return;
+
 	jint period_time = _GET_INT_FIELD(this, "period_time");
 
 	// FIXME - this callback should probably be set up elsewhere
@@ -184,8 +202,6 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1play(JNIEnv *env, j
 	//g_timeout_add (period_time / 1000, G_SOURCE_FUNC(helper_loop), callback_data);
 
 	/*--↓*/
-	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
-
 	snd_async_handler_t *pcm_callback;
 
 	snd_async_add_pcm_handler(&pcm_callback, pcm_handle, periodic_update_callback, callback_data);
@@ -217,6 +233,8 @@ static int write_frames(snd_pcm_t *pcm_handle, const void *buffer, int frames_to
 JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1write___3BIIF(JNIEnv *env, jobject this, jbyteArray audio_data, jint offset_in_bytes, jint frames_to_write, jfloat volume)
 {
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return 0;
 
 	jbyte *buffer = _GET_BYTE_ARRAY_ELEMENTS(audio_data);
 	snd_pcm_sframes_t frames_written = write_frames(pcm_handle, buffer + offset_in_bytes, frames_to_write, volume);
@@ -228,6 +246,8 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1write___3BIIF(JNIEn
 JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1write___3SIIF(JNIEnv *env, jobject this, jshortArray audio_data, jint offset_in_shorts, jint frames_to_write, jfloat volume)
 {
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return 0;
 
 	jshort *buffer = (*env)->GetShortArrayElements(env, audio_data, NULL);
 	snd_pcm_sframes_t frames_written = write_frames(pcm_handle, buffer + offset_in_shorts, frames_to_write, volume);
@@ -239,18 +259,35 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1write___3SIIF(JNIEn
 JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1pause(JNIEnv *env, jobject this)
 {
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return;
 	snd_pcm_pause(pcm_handle, TRUE);
+}
+
+JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1flush(JNIEnv *env, jobject this)
+{
+	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return;
+	/* Discard frames written but not played (Android flush()/stop()).
+	 * Errors by stream state are intentionally ignored. */
+	snd_pcm_drop(pcm_handle);
 }
 
 JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1release(JNIEnv *env, jobject this)
 {
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return;
 	snd_pcm_close(pcm_handle);
+	_SET_LONG_FIELD(this, "pcm_handle", 0);
 }
 
 JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1getPlaybackHeadPosition(JNIEnv *env, jobject this)
 {
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
+	if (!pcm_handle)
+		return 0;
 	snd_pcm_sframes_t delay;
 	snd_pcm_delay(pcm_handle, &delay);
 
