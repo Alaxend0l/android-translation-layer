@@ -205,9 +205,23 @@ public class Drawable {
 	public void setColorFilter(int color, PorterDuff.Mode mode) {
 		setColorFilter(new PorterDuffColorFilter(color, mode));
 	}
-	public void setColorFilter(ColorFilter filter) {}
+	private ColorStateList mTintList;
+	private PorterDuff.Mode mTintMode;
+	private ColorFilter mColorFilter;
 
-	public ColorFilter getColorFilter() { return null; }
+	public void setColorFilter(ColorFilter filter) {
+		/* ATL gap stated plainly: storing here matches AOSP at the Java
+		 * level (getColorFilter/getColorFilter readers, propagateToLayers
+		 * etc.), but ATL's GTK paintables do not yet apply a ColorFilter
+		 * at draw time - applying it during rendering is the separate
+		 * rendering gap. */
+		mColorFilter = filter;
+		invalidateSelf();
+	}
+
+	public ColorFilter getColorFilter() {
+		return mColorFilter;
+	}
 
 	public Drawable mutate() {
 		return this;
@@ -219,7 +233,16 @@ public class Drawable {
 	@Export
 	public int getIntrinsicHeight() { return -1; }
 
-	public void setTintList(ColorStateList tint) {}
+	public void setTintList(ColorStateList tint) {
+		/* Stored (see setColorFilter: the Java-level state is honest,
+		 * GTK rendering does not yet apply the tint). */
+		mTintList = tint;
+		invalidateSelf();
+	}
+
+	public ColorStateList getTintList() {
+		return mTintList;
+	}
 
 	public void setTint(int tint) {
 		setTintList(ColorStateList.valueOf(tint));
@@ -259,7 +282,14 @@ public class Drawable {
 		return false;
 	}
 
-	public void setTintMode(PorterDuff.Mode tintMode) {}
+	public void setTintMode(PorterDuff.Mode tintMode) {
+		mTintMode = tintMode;
+		invalidateSelf();
+	}
+
+	public PorterDuff.Mode getTintMode() {
+		return mTintMode;
+	}
 
 	public boolean isProjected() { return false; }
 
