@@ -104,6 +104,19 @@ public class Window {
 		}
 	}
 
+	public boolean superDispatchKeyEvent(KeyEvent event) {
+		/* AOSP PhoneWindow.superDispatchKeyEvent dispatches into the decor
+		 * view; the fork's Window is concrete and holds the decor view
+		 * directly. ATL's real key input comes from GTK straight to the
+		 * focused widget's View.dispatchKeyEvent (api-impl-jni/widgets/
+		 * WrapperWidget.c), so this chain matters for apps that route key
+		 * events through an Activity themselves. Known gap: the fork's
+		 * ViewGroup.dispatchKeyEvent does not fall through to focused
+		 * children (AOSP ViewGroup dispatches to mFocused first), so only
+		 * the decor view itself sees the event here. */
+		return decorView != null && decorView.dispatchKeyEvent(event);
+	}
+
 	public View getDecorView() {
 		return decorView;
 	}

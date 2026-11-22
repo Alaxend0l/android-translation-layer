@@ -39,7 +39,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Activity extends ContextThemeWrapper implements Window.Callback, LayoutInflater.Factory2 {
+/* KeyEvent.Callback: the fork's Window.Callback does not extend it (AOSP's
+ * does), so Activity declares it directly to get the AOSP
+ * onKeyDown/onKeyUp/onKeyLongPress/onKeyMultiple defaults used by
+ * dispatchKeyEvent. */
+public class Activity extends ContextThemeWrapper implements Window.Callback, LayoutInflater.Factory2, KeyEvent.Callback {
 	private final static String TAG = "Activity";
 
 	public static final int RESULT_CANCELED = 0;
@@ -775,6 +779,45 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean dispatchKeyEvent(KeyEvent event) {
+		/* AOSP hands the event to the window's view hierarchy first
+		 * (Window.superDispatchKeyEvent -> DecorView), and only an
+		 * unhandled event falls back to the Activity's own
+		 * onKeyDown/onKeyUp through KeyEvent.dispatch(). The fork
+		 * returned false without consulting anything, so apps that
+		 * route key events through their Activity (custom key
+		 * routing, re-dispatch from an OnKeyListener) saw every key
+		 * as unhandled even when a view would have taken it.
+		 * Honest limitation: ATL's real key input comes from GTK
+		 * straight to the focused widget's View.dispatchKeyEvent
+		 * (api-impl-jni/widgets/WrapperWidget.c) - nothing calls
+		 * this method in the normal path - and the fork's ViewGroup
+		 * has no focused-child propagation (AOSP ViewGroup
+		 * dispatches to mFocused first), so the window half only
+		 * reaches views that themselves override dispatchKeyEvent. */
+		Window w = getWindow();
+		if (w != null && w.superDispatchKeyEvent(event))
+			return true;
+		return event.dispatch(this);
+	}
+
+	/* AOSP Activity key callbacks, the KeyEvent.Callback half of the
+	 * Window.Callback pair. In AOSP these forward to mDefaultKeySrv, the
+	 * legacy default key service, which is null unless the app used
+	 * getDefaultKeyDialog - i.e. the effective framework default is
+	 * false (unhandled) and apps override these. */
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		return false;
+	}
+
+	public boolean onKeyUp(int keyCode, KeyEvent event) {
+		return false;
+	}
+
+	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+		return false;
+	}
+
+	public boolean onKeyMultiple(int keyCode, int repeatCount, KeyEvent event) {
 		return false;
 	}
 
