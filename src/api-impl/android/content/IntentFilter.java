@@ -1,6 +1,7 @@
 package android.content;
 
 import android.net.Uri;
+import android.util.Printer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -99,5 +100,20 @@ public class IntentFilter {
 
 	public final Iterator authoritiesIterator() {
 		return null;
+	}
+
+	public void dump(Printer pw, String prefix) {
+		// AOSP IntentFilter has no dump() at all; davdroid's debug path calls
+		// invoke-virtual IntentFilter.dump(Printer,String)V (the void
+		// Printer-style dump, as on BroadcastReceiver/Service). Print the
+		// filter contents so the dump output is real, with the descriptor the
+		// call sites resolve to.
+		pw.println(prefix + "Intent Filter:");
+		for (int i = 0; i < actions.size(); i++) {
+			pw.println(prefix + "  action=" + actions.get(i));
+		}
+		for (String category : categories) {
+			pw.println(prefix + "  category=" + category);
+		}
 	}
 }
