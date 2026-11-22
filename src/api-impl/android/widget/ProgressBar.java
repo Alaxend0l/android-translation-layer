@@ -74,7 +74,7 @@ public class ProgressBar extends View {
 
 	public void setIndeterminate(boolean indeterminate) {
 		native_setIndeterminate(indeterminate);
-		indeterminate = true;
+		this.indeterminate = indeterminate;
 	}
 
 	public Drawable getProgressDrawable() {
