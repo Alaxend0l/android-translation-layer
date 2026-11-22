@@ -162,6 +162,13 @@ public class MediaStore {
 
 		public static class Media {
 
+			/* AOSP defines the column names in MediaColumns (Audio.Media
+			 * implements it there); the fork's minimal MediaStore carries
+			 * the ones actually referenced by framework code here
+			 * (Ringtone.getTitle). */
+			public static final String TITLE = "title";
+			public static final String ARTIST = "artist";
+
 			public static final Uri EXTERNAL_CONTENT_URI = Uri.parse("content://media/external/audio/media");
 			public static final Uri INTERNAL_CONTENT_URI = Uri.parse("content://media/internal/audio/media");
 			public static Uri getContentUri(String volume) {

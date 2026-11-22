@@ -10,7 +10,9 @@ public class RingtoneManager {
 	public static final int TYPE_ALARM = 3;
 
 	public static Ringtone getRingtone(Context context, Uri uri) {
-		return new Ringtone();
+		/* AOSP keeps the context and URI in the Ringtone; getTitle() reads
+		 * them back through the resolver. */
+		return new Ringtone(context, uri);
 	}
 
 	public static Uri getDefaultUri(int type) {
