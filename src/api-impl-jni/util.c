@@ -179,6 +179,13 @@ int get_nio_buffer_size(JNIEnv *env, jobject buffer)
 	return limit - position;
 }
 
+int get_nio_buffer_capacity(JNIEnv *env, jobject buffer)
+{
+	jclass class = _CLASS(buffer);
+
+	return (*env)->GetIntField(env, buffer, _FIELD_ID(class, "capacity", "I"));
+}
+
 /* Calling these functions while snapshotting will cause Gtk to not snapshot the affected widgets.
  * Below are "safe" wrappers which will postpone the calls if inside a snapshot.
  * Specifically, gtk_widget_add_tick_callback will make sure the calls are made in the next

@@ -53,15 +53,22 @@ public class MediaCodec {
 			inputBuffers[i] = ByteBuffer.allocate(maxInputSize).order(ByteOrder.LITTLE_ENDIAN);
 			freeInputBuffers.add(i);
 		}
+		boolean isAudio = "aac".equals(codecName) || "mp3".equals(codecName) || "opus".equals(codecName)
+				|| "flac".equals(codecName);
 		outputBuffers = new ByteBuffer[4];
 		freeOutputBuffers = new ArrayDeque<>(outputBuffers.length);
+		/* Audio decoders emit whole PCM frames: a FLAC frame can be 4608
+		 * samples (18 KiB of S16 stereo) and an Opus frame up to 5760, so
+		 * 16 KiB truncated frames (the native side wrote past the array).
+		 * 32 KiB covers every frame these decoders can produce; the native
+		 * side still clamps to capacity and defers the remainder. */
+		int outputSize = isAudio ? 32768 : 16384;
 		for (int i = 0; i < outputBuffers.length; i++) {
-			outputBuffers[i] = ByteBuffer.allocate(16384).order(ByteOrder.LITTLE_ENDIAN);
+			outputBuffers[i] = ByteBuffer.allocate(outputSize).order(ByteOrder.LITTLE_ENDIAN);
 			freeOutputBuffers.add(i);
 		}
 
-		if ("aac".equals(codecName) || "mp3".equals(codecName) || "opus".equals(codecName)
-				|| "flac".equals(codecName)) {
+		if (isAudio) {
 			native_configure_audio(native_codec, format.getByteBuffer("csd-0"), format.getInteger("sample-rate"), format.getInteger("channel-count"));
 		} else if ("h264".equals(codecName) || "vp8".equals(codecName) || "vp9".equals(codecName)) {
 			native_configure_video(native_codec, format.getByteBuffer("csd-0"), format.getByteBuffer("csd-1"), surface);

@@ -34,6 +34,7 @@ struct ATL_codec_context {
 		struct {
 			SwrContext *swr;
 			int sample_rate;
+			int64_t last_pts;
 		} audio;
 		struct {
 			struct SwsContext *sws; // for software decoding
@@ -323,6 +324,32 @@ JNIEXPORT jint JNICALL Java_android_media_MediaCodec_native_1queueInputBuffer(JN
 	return ret;
 }
 
+/* Convert into dst (capacity dst_frames) draining `in_left` samples from `in`,
+ * then the resampler's own buffer. swr_convert keeps whatever it could not
+ * emit in its internal buffer, so this loops until dst is full or the
+ * resampler runs dry; the samples left over are picked up on the next call.
+ * Returns the number of samples written. */
+static int swr_fill_output(struct ATL_codec_context *ctx, uint8_t *dst, int dst_frames, const uint8_t **in, int in_left)
+{
+	int bytes_per_frame = 2 * ctx->codec->ch_layout.nb_channels;
+	int total = 0;
+	while (total < dst_frames) {
+		int want = dst_frames - total;
+		uint8_t *dstp = dst + (ptrdiff_t) total * bytes_per_frame;
+		int got = swr_convert(ctx->audio.swr, &dstp, want, in, in_left);
+		if (got < 0) {
+			fprintf(stderr, "FFmpegDecoder: audio sample conversion failed: %s\n", av_err2str(got));
+			break;
+		}
+		total += got;
+		in = NULL; // everything not emitted is in the resampler's buffer now
+		in_left = 0;
+		if (got < want)
+			break;
+	}
+	return total;
+}
+
 JNIEXPORT jint JNICALL Java_android_media_MediaCodec_native_1dequeueOutputBuffer(JNIEnv *env, jobject this, jlong codec, jobject buffer, jobject buffer_info)
 {
 	struct ATL_codec_context *ctx = _PTR(codec);
@@ -331,6 +358,24 @@ JNIEXPORT jint JNICALL Java_android_media_MediaCodec_native_1dequeueOutputBuffer
 	int ret;
 	jarray array_ref;
 	jbyte *array;
+
+	/* If the output buffer was too small for the last decoded frame, the
+	 * resampler still holds the remainder: deliver that before pulling a
+	 * new frame, otherwise the tail of the stream is lost. */
+	if (codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO && ctx->audio.swr &&
+			swr_convert(ctx->audio.swr, NULL, 0, NULL, 0) > 0) {
+		int bytes_per_frame = 2 * codec_ctx->ch_layout.nb_channels;
+		int capacity_frames = get_nio_buffer_capacity(env, buffer) / bytes_per_frame;
+		uint8_t *raw_buffer = get_nio_buffer(env, buffer, &array_ref, &array);
+		int total = swr_fill_output(ctx, raw_buffer, capacity_frames, NULL, 0);
+		release_nio_buffer(env, array_ref, array);
+		_SET_INT_FIELD(buffer_info, "flags", 0);
+		_SET_LONG_FIELD(buffer_info, "presentationTimeUs", ctx->audio.last_pts);
+		_SET_INT_FIELD(buffer_info, "offset", 0);
+		_SET_INT_FIELD(buffer_info, "size", total * bytes_per_frame);
+		av_frame_free(&frame);
+		return 0;
+	}
 
 	ret = avcodec_receive_frame(codec_ctx, frame);
 	if (ret < 0) {
@@ -376,11 +421,23 @@ JNIEXPORT jint JNICALL Java_android_media_MediaCodec_native_1dequeueOutputBuffer
 			}
 			swr_init(ctx->audio.swr);
 		}
+		/* Clamp to the destination buffer's capacity: a FLAC frame can be
+		 * 4608 samples (18 KiB of S16 stereo), more than the shim's output
+		 * buffer, and writing past the end of the Java byte[] corrupts the
+		 * heap. The remainder stays in the resampler and is delivered on
+		 * the next dequeue (drain check above). */
+		int bytes_per_frame = 2 * codec_ctx->ch_layout.nb_channels;
+		int capacity_frames = get_nio_buffer_capacity(env, buffer) / bytes_per_frame;
+		if (frame->nb_samples > capacity_frames) {
+			fprintf(stderr, "MediaCodec audio: %d-sample frame does not fit the %d-sample output buffer, tail deferred\n",
+				frame->nb_samples, capacity_frames);
+		}
 		uint8_t *raw_buffer = get_nio_buffer(env, buffer, &array_ref, &array);
-		int outSamples = swr_convert(ctx->audio.swr, &raw_buffer, frame->nb_samples, (uint8_t const **)(frame->data), frame->nb_samples);
+		int outSamples = swr_fill_output(ctx, raw_buffer, capacity_frames, (const uint8_t **) frame->data, frame->nb_samples);
 		release_nio_buffer(env, array_ref, array);
+		ctx->audio.last_pts = frame->pts;
 		_SET_INT_FIELD(buffer_info, "offset", 0);
-		_SET_INT_FIELD(buffer_info, "size", outSamples * 2 * codec_ctx->ch_layout.nb_channels);
+		_SET_INT_FIELD(buffer_info, "size", outSamples * bytes_per_frame);
 
 		av_frame_free(&frame);
 	} else if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
