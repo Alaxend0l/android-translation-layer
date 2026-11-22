@@ -552,7 +552,9 @@ public class Canvas {
 	}
 
 	public void drawARGB(int a, int r, int g, int b) {
-		Log.w("Canvas", "STUB: drawARGB(" + a + ", " + r + ", " + g + ", " + b + ")");
+		/* AOSP: drawColor(Color.argb(a, r, g, b)). drawColor(int) already
+		 * paints the whole canvas (drawPaint); this used to only log. */
+		drawColor(Color.argb(a, r, g, b));
 	}
 
 	public int saveLayer(RectF bounds, Paint paint, int flags) {
@@ -572,7 +574,13 @@ public class Canvas {
 	}
 
 	public void drawColor(int color, PorterDuff.Mode mode) {
-		Log.w("Canvas", "STUB: drawColor(" + String.format("0x%08x", color) + ", " + mode + ")");
+		/* SRC_OVER is the normal full-canvas blend and drawPaint handles
+		 * it; ATL's GTK snapshot path has no per-mode canvas blending,
+		 * so other modes still paint the canvas with the colour and say
+		 * so once - the mode is not silently pretend-applied. */
+		if (mode != PorterDuff.Mode.SRC_OVER)
+			Log.w("Canvas", "drawColor(mode=" + mode + "): blend mode not applied, painting SRC_OVER");
+		drawColor(color);
 	}
 
 	public boolean clipRect(int left, int top, int right, int bottom) {
@@ -645,7 +653,11 @@ public class Canvas {
 	}
 
 	public void drawPoint(float x, float y, Paint paint) {
-		Log.w("Canvas", "STUB: drawPoint");
+		/* AOSP paints a strokeWidth-sized square centred on (x, y);
+		 * a filled circle of that diameter is the closest ATL (GTK)
+		 * primitive. */
+		float r = Math.max(paint.getStrokeWidth(), 1f) / 2f;
+		drawCircle(x, y, r, paint);
 	}
 
 	public void drawPoints(float[] pts, Paint paint) {
@@ -653,8 +665,11 @@ public class Canvas {
 	}
 
 	public void drawPoints(float[] pts, int offset, int count, Paint paint) {
-		for (int i = offset; i < count; i++) {
-			drawPoint(pts[i * 2], pts[i * 2 + 1], paint);
+		/* AOSP: `count` POINTS taken from pts starting at `offset`
+		 * (pairs). The old loop mixed offset and count and read
+		 * pts[i*2], so with offset != 0 it drew the wrong pairs. */
+		for (int i = 0; i < count; i++) {
+			drawPoint(pts[offset + i * 2], pts[offset + i * 2 + 1], paint);
 		}
 	}
 
