@@ -45,7 +45,7 @@ public class WebView extends ViewGroup {
 	@Export
 	void internalLoadChanged(int loadState, String url) {
 		if (loadState == /*WEBKIT_LOAD_STARTED*/ 0 && webViewClient != null) {
-			webViewClient.onPageStarted(this, url);
+			webViewClient.onPageStarted(this, url, null);
 		} else if (loadState == /*WEBKIT_LOAD_FINISHED*/ 3 && webViewClient != null) {
 			webViewClient.onPageFinished(this, url);
 		}
@@ -54,9 +54,28 @@ public class WebView extends ViewGroup {
 	@Export
 	boolean internalShouldOverrideUrlLoading(String url) {
 		if (webViewClient != null)
-			return webViewClient.shouldOverrideUrlLoading(this, url);
+			/* Route through the AOSP WebResourceRequest form: its default
+			 * implementation delegates to the deprecated String one, so
+			 * apps overriding either style are called. ATL's native glue
+			 * only reports a url, hence the minimal request. */
+			return webViewClient.shouldOverrideUrlLoading(this, new SimpleWebResourceRequest(url));
 		else
 			return false;
+	}
+
+	private static final class SimpleWebResourceRequest implements WebResourceRequest {
+		private final String url;
+		SimpleWebResourceRequest(String url) {
+			this.url = url;
+		}
+		@Override public android.net.Uri getUrl() { return android.net.Uri.parse(url); }
+		@Override public boolean isForMainFrame() { return true; }
+		@Override public boolean isRedirect() { return false; }
+		@Override public boolean hasGesture() { return false; }
+		@Override public String getMethod() { return "GET"; }
+		@Override public java.util.Map<String, String> getRequestHeaders() {
+			return java.util.Collections.emptyMap();
+		}
 	}
 
 	public void setVerticalScrollBarEnabled(boolean enabled) {}
