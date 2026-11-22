@@ -2,6 +2,7 @@ package android.graphics.drawable;
 
 import android.content.res.Resources;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 
 public class DrawableContainer extends Drawable {
 
@@ -26,6 +27,7 @@ public class DrawableContainer extends Drawable {
 		}
 		if (idx != curIndex && state.drawables[idx] != null) {
 			curIndex = idx;
+			state.drawables[idx].setBounds(getBounds());
 			native_selectChild(paintable, state.drawables[idx].paintable);
 			invalidateSelf();
 			return true;
@@ -119,9 +121,9 @@ public class DrawableContainer extends Drawable {
 	}
 
 	@Override
-	public void setBounds(int left, int top, int right, int bottom) {
-		if (curIndex != -1)
-			state.drawables[curIndex].setBounds(left, top, right, bottom);
+	protected void onBoundsChange(Rect bounds) {
+		if (curIndex != -1 && state.drawables[curIndex] != null)
+			state.drawables[curIndex].setBounds(bounds);
 	}
 
 	public void setEnterFadeDuration(int duration) {}
