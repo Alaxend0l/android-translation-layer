@@ -14,6 +14,14 @@ public class NotificationManager {
 
 	private static int mpris_notification_id = -1;
 
+	/* Channels/groups are process-wide like AOSP (per app process): the
+	 * app gets NotificationManager from getSystemService and expects the
+	 * channels it created there. */
+	private static final java.util.Map<String, NotificationChannel> channels
+			= new java.util.HashMap<String, NotificationChannel>();
+	private static final java.util.Map<String, NotificationChannelGroup> channelGroups
+			= new java.util.HashMap<String, NotificationChannelGroup>();
+
 	public void cancelAll() {}
 
 	public void notify(String tag, int id, Notification notification) {
@@ -71,7 +79,14 @@ public class NotificationManager {
 		cancel(null, id);
 	}
 
-	public void createNotificationChannel(NotificationChannel channel) {}
+	public void createNotificationChannel(NotificationChannel channel) {
+		/* AOSP keeps the channel (per app) so getNotificationChannel(s)
+		 * answer; ATL has no settings UI behind it, but apps create a
+		 * channel and read it back (migration screens, importance
+		 * checks), so the map matches that contract. */
+		if (channel != null && channel.getId() != null)
+			channels.put(channel.getId(), channel);
+	}
 
 	protected native long nativeInitBuilder();
 	protected native void nativeAddAction(long builder, String title, int intentType, Intent intent);
@@ -80,31 +95,44 @@ public class NotificationManager {
 	protected native void nativeCancel(int id);
 	protected native void nativeCancelMPRIS();
 
-	public void createNotificationChannelGroup(NotificationChannelGroup v) {}
+	public void createNotificationChannelGroup(NotificationChannelGroup v) {
+		if (v != null && v.getId() != null)
+			channelGroups.put(v.getId(), v);
+	}
 
 	public List<NotificationChannel> getNotificationChannels() {
-		return Collections.emptyList();
+		return new java.util.ArrayList<NotificationChannel>(channels.values());
 	}
 
 	public List<NotificationChannelGroup> getNotificationChannelGroups() {
-		return Collections.emptyList();
+		return new java.util.ArrayList<NotificationChannelGroup>(channelGroups.values());
 	}
 
 	public boolean areNotificationsEnabled() {
 		return true;
 	}
 
-	public void deleteNotificationChannel(String channelId) {}
+	public void deleteNotificationChannel(String channelId) {
+		channels.remove(channelId);
+	}
 
-	public void createNotificationChannelGroups(List<NotificationChannelGroup> groups) {}
+	public void createNotificationChannelGroups(List<NotificationChannelGroup> groups) {
+		if (groups != null)
+			for (NotificationChannelGroup g : groups)
+				createNotificationChannelGroup(g);
+	}
 
-	public void createNotificationChannels(List<NotificationChannel> channels) {}
+	public void createNotificationChannels(List<NotificationChannel> channels) {
+		if (channels != null)
+			for (NotificationChannel c : channels)
+				createNotificationChannel(c);
+	}
 
 	public StatusBarNotification[] getActiveNotifications() {
 		return new StatusBarNotification[0];
 	}
 
 	public NotificationChannel getNotificationChannel(String channel) {
-		return null;
+		return channels.get(channel); /* null when never created, like AOSP */
 	}
 }
