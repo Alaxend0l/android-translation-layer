@@ -320,7 +320,67 @@ public class TextUtils {
 	 * copy with ellipsis character added at the specified edge or center.
 	 */
 	public static CharSequence ellipsize(CharSequence text, TextPaint p, float avail, TruncateAt where) {
-		return text;
+		/* AOSP: the text itself when it fits, else a truncated copy with an
+		 * ellipsis. ATL's Paint.measureText is an approximation
+		 * (0.6 * textSize per char), so the cut point is approximate too.
+		 * MARQUEE (AOSP compresses whitespace) and END_SMALL fall back to
+		 * END here; null/zero-width follow AOSP. */
+		if (text == null)
+			return text;
+		if (avail <= 0)
+			return "";
+		final String ELLIPSIS = "\u2026";
+		final int len = text.length();
+		if (p.measureText(text, 0, len) <= avail)
+			return text;
+		final float ellipsisW = p.measureText(ELLIPSIS);
+		if (avail <= ellipsisW)
+			return "";
+		if (where == TruncateAt.START) {
+			/* smallest k with ellipsis + text[k,len) fitting */
+			int lo = 0, hi = len;
+			while (lo < hi) {
+				int mid = (lo + hi) / 2;
+				if (ellipsisW + p.measureText(text, mid, len) <= avail)
+					hi = mid;
+				else
+					lo = mid + 1;
+			}
+			return ELLIPSIS + text.subSequence(lo, len);
+		} else if (where == TruncateAt.MIDDLE) {
+			/* keep as much of the head as fits in half the room, then the
+			 * longest tail that fits in the rest */
+			int lo = 0, hi = len;
+			while (hi - lo > 1) {
+				int mid = (lo + hi) / 2;
+				if (p.measureText(text, 0, mid) <= (avail - ellipsisW) / 2)
+					lo = mid;
+				else
+					hi = mid;
+			}
+			int head = lo;
+			float headW = p.measureText(text, 0, head);
+			lo = head + 1; hi = len; // text.subSequence(len,len) is empty: fits
+			while (lo < hi) {
+				int mid = (lo + hi) / 2;
+				if (ellipsisW + headW + p.measureText(text, mid, len) <= avail)
+					hi = mid;
+				else
+					lo = mid + 1;
+			}
+			return text.subSequence(0, head) + ELLIPSIS + text.subSequence(lo, len);
+		} else { /* END, MARQUEE, END_SMALL */
+			/* largest k with text[0,k) + ellipsis fitting; k=0 fits (avail>ellipsisW) */
+			int lo = 0, hi = len;
+			while (hi - lo > 1) {
+				int mid = (lo + hi) / 2;
+				if (p.measureText(text, 0, mid) + ellipsisW <= avail)
+					lo = mid;
+				else
+					hi = mid;
+			}
+			return text.subSequence(0, lo) + ELLIPSIS;
+		}
 	}
 
 	public static void getChars(CharSequence s, int start, int end, char[] dest, int destoff) {
@@ -352,7 +412,21 @@ public class TextUtils {
 	}
 
 	public static String htmlEncode(String s) {
-		return s;
+		/* AOSP Unicode.escapeCharacters: escapes <, >, & and NUL, nothing else. */
+		if (s == null)
+			return null;
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < s.length(); i++) {
+			char c = s.charAt(i);
+			switch (c) {
+				case '<': sb.append("&lt;"); break;
+				case '>': sb.append("&gt;"); break;
+				case '&': sb.append("&amp;"); break;
+				case 0: sb.append("&#0;"); break;
+				default: sb.append(c);
+			}
+		}
+		return sb.toString();
 	}
 
 	public static CharSequence concat(CharSequence[] array) {

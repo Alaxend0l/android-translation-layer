@@ -509,7 +509,12 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 		return false;
 	}
 
-	public void setClipToPadding(boolean clipToPadding) {}
+	private boolean clipToPadding = true; /* AOSP default */
+	private boolean clipChildren = true;  /* AOSP default */
+
+	public void setClipToPadding(boolean clipToPadding) {
+		this.clipToPadding = clipToPadding;
+	}
 
 	public View findViewById(int id) {
 		if (Log.isLoggable(TAG, Log.VERBOSE))
@@ -547,7 +552,9 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 
 	public void setTouchscreenBlocksFocus(boolean touchscreenBlocksFocus) {}
 
-	public void setClipChildren(boolean clipChildren) {}
+	public void setClipChildren(boolean clipChildren) {
+		this.clipChildren = clipChildren;
+	}
 
 	@Override
 	/* Copyright (C) 2006 The Android Open Source Project */
@@ -647,7 +654,7 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 		native_offsetRect(widget, descendant.widget, rect);
 	}
 
-	public boolean getClipToPadding() { return false; }
+	public boolean getClipToPadding() { return clipToPadding; }
 
 	public boolean isTransitionGroup() { return false; }
 
@@ -855,7 +862,7 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 	public void requestChildFocus(View child, View focused) {}
 
 	public boolean getClipChildren() {
-		return false;
+		return clipChildren;
 	}
 
 	@Override

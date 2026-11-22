@@ -81,6 +81,7 @@ public abstract class Context {
 	private final static String TAG = "Context";
 
 	public static final int MODE_PRIVATE = 0;
+	public static final int MODE_APPEND = 2;
 	public static final String ACCOUNT_SERVICE = "account";
 	public static final String ACTIVITY_SERVICE = "activity";
 	public static final String AUDIO_SERVICE = "audio";
@@ -406,7 +407,11 @@ public abstract class Context {
 	public FileOutputStream openFileOutput(String name, int mode) throws java.io.FileNotFoundException {
 		if (Log.isLoggable(TAG, Log.VERBOSE))
 			Slog.v(TAG, "openFileOutput called for: '" + name + "'");
-		return new FileOutputStream(android.os.Environment.getExternalStorageDirectory().getPath() + "/files/" + name);
+		/* AOSP files into getFilesDir() - the same dir openFileInput reads,
+		 * which this used to miss by writing under the external storage
+		 * dir - and MODE_APPEND opens in append mode. */
+		File file = makeFilename(getFilesDir(), name);
+		return new FileOutputStream(file, (mode & MODE_APPEND) != 0);
 	}
 
 	public int checkCallingOrSelfPermission(String permission) {
@@ -573,7 +578,14 @@ public abstract class Context {
 	}
 
 	public String[] fileList() {
-		return new String[0];
+		/* AOSP ContextImpl: list the app's private files dir; empty when it
+		 * does not exist. (Was hardcoded to empty, so append+read
+		 * round-trips and "does my file exist" checks saw nothing.) */
+		File dir = getFilesDir();
+		if (dir == null)
+			return new String[0];
+		String[] list = dir.list();
+		return list != null ? list : new String[0];
 	}
 
 	public void revokeUriPermission(Uri uri, int mode) {
