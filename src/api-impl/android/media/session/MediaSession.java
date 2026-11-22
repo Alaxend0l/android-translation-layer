@@ -79,6 +79,19 @@ public class MediaSession {
 
 	public void setExtras(Bundle extras) {}
 
+	public void sendSessionEvent(String event, Bundle extras) {
+		// AOSP forwards the event over the session binder to every connected
+		// MediaController (hidden sendSessionEvent(Long, Bundle)); once a
+		// session is abandoned AOSP just logs and returns. ATL has no
+		// cross-app media session bus (the native bridge only mirrors
+		// playback state to MPRIS, which has no session-event concept), so
+		// there is never a controller to deliver to: log and return, the
+		// AOSP abandoned-session behaviour. androidx.media3's MediaSessionStub
+		// posts events (e.g. its custom commands) on every play, so apps
+		// like Gramophone hit this the moment playback starts.
+		System.out.println("MediaSession.sendSessionEvent(" + event + ") dropped: no session bus in ATL");
+	}
+
 	public void setSessionActivity(PendingIntent pendingIntent) {}
 
 	public boolean isActive() {
