@@ -652,7 +652,19 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	public static native void nativeOpenURI(String uri);
 	public native void nativeFileChooser(int action, String type, String title, int requestCode);
 	public void reportFullyDrawn() {}
-	public void setVisible(boolean visible) {}
+	public void setVisible(boolean visible) {
+		/* AOSP Activity.setVisible sets mVisible (old API predating the
+		 * Window callbacks it now backs); ATL has no visibility backend
+		 * to drive, but apps (and frameworks) read state back, so the
+		 * value is kept; see onWindowFocusChanged for the real signal. */
+		mVisible = visible;
+	}
+
+	private boolean mVisible = false;
+
+	public boolean isVisible() {
+		return mVisible;
+	}
 	public Uri getReferrer() { return null; }
 	public void setDefaultKeyMode(int flag) {}
 	public void registerForContextMenu(View view) {}
