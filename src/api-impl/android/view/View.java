@@ -1568,14 +1568,21 @@ public class View implements Drawable.Callback {
 	}
 
 	public void scheduleDrawable(Drawable drawable, Runnable runnable, long time) {
-		postDelayed(runnable, time - SystemClock.uptimeMillis());
+		/* AOSP posts the frame callbacks with the drawable as the handler
+		 * token so unscheduleDrawable(drawable) can drop all of them. */
+		if (runnable != null)
+			getHandler().postAtTime(runnable, drawable, time - SystemClock.uptimeMillis());
 	}
 
 	public void unscheduleDrawable(Drawable drawable, Runnable runnable) {
-		/* TODO */
+		if (runnable != null && drawable != null)
+			getHandler().removeCallbacks(runnable, drawable);
 	}
 
-	public void unscheduleDrawable(Drawable drawable) {}
+	public void unscheduleDrawable(Drawable drawable) {
+		if (drawable != null)
+			getHandler().removeCallbacksAndMessages(drawable);
+	}
 
 	public void invalidate(Rect dirty) {
 		invalidate();
