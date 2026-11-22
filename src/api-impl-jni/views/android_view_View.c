@@ -985,6 +985,41 @@ JNIEXPORT jboolean JNICALL Java_android_view_View_nativeIsFocused(JNIEnv *env, j
 	return gtk_widget_has_focus(widget) || gtk_widget_has_focus(wrapper);
 }
 
+/* AOSP View.hasFocus(): the window's focus widget is this widget or a
+ * descendant of it. Focus may sit on the inner GTK widget or on the
+ * wrapper (see nativeRequestFocus/nativeIsFocused), so both subtrees are
+ * checked. */
+JNIEXPORT jboolean JNICALL Java_android_view_View_nativeHasFocus(JNIEnv *env, jobject this, jlong widget_ptr)
+{
+	GtkWidget *widget = GTK_WIDGET(_PTR(widget_ptr));
+	GtkRoot *root = gtk_widget_get_root(widget);
+	if (!GTK_IS_WINDOW(root))
+		return false;
+	GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(root));
+	if (!focus)
+		return false;
+	GtkWidget *wrapper = gtk_widget_get_parent(widget);
+	return gtk_widget_is_ancestor(widget, focus) ||
+	       (wrapper && gtk_widget_is_ancestor(wrapper, focus));
+}
+
+/* AOSP View.clearFocus(): release focus only when this view's subtree
+ * holds it, so clearing never unfocuses an unrelated view. */
+JNIEXPORT void JNICALL Java_android_view_View_nativeClearFocus(JNIEnv *env, jobject this, jlong widget_ptr)
+{
+	GtkWidget *widget = GTK_WIDGET(_PTR(widget_ptr));
+	GtkRoot *root = gtk_widget_get_root(widget);
+	if (!GTK_IS_WINDOW(root))
+		return;
+	GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(root));
+	if (!focus)
+		return;
+	GtkWidget *wrapper = gtk_widget_get_parent(widget);
+	if (gtk_widget_is_ancestor(widget, focus) ||
+	    (wrapper && gtk_widget_is_ancestor(wrapper, focus)))
+		gtk_window_set_focus(GTK_WINDOW(root), NULL);
+}
+
 JNIEXPORT void JNICALL Java_android_view_View_native_1keep_1screen_1on(JNIEnv *env, jobject this, jlong widget_ptr, jboolean enable)
 {
 	GtkApplication *application = GTK_APPLICATION(g_application_get_default());

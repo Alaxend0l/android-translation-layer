@@ -39,6 +39,7 @@ import android.util.SparseArray;
 import android.util.StateSet;
 import android.util.TypedValue;
 import android.view.WindowInsets;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.Animation;
 import android.view.autofill.AutofillId;
 import android.view.inputmethod.EditorInfo;
@@ -998,6 +999,9 @@ public class View implements Drawable.Callback {
 
 	private boolean atl_enabled = true;
 	private boolean atl_focusable = true;
+	/* AOSP default is false; ATL keeps the state so hasFocusable and the
+	 * API-26 getters answer truthfully (queue item 108). */
+	private boolean atl_focusable_in_touch_mode = false;
 
 	private Handler handler;
 
@@ -1440,7 +1444,19 @@ public class View implements Drawable.Callback {
 		else
 			atl_focusable = focusable == 1; /* FOCUSABLE */
 	}
-	public void setFocusableInTouchMode(boolean focusableInTouchMode) {}
+	public void setFocusableInTouchMode(boolean focusableInTouchMode) {
+		atl_focusable_in_touch_mode = focusableInTouchMode;
+	}
+
+	/* AOSP API 26 getter pair for the flags above; isFocusable() already
+	 * returns ATL's focusable state. */
+	public boolean getFocusable() {
+		return atl_focusable;
+	}
+
+	public boolean getFocusableInTouchMode() {
+		return atl_focusable_in_touch_mode;
+	}
 	public final boolean requestFocus() {
 		return requestFocus(View.FOCUS_DOWN);
 	}
@@ -2222,11 +2238,25 @@ public class View implements Drawable.Callback {
 	public void bringToFront() {}
 
 	public boolean isEnabled() { return atl_enabled; }
-	public boolean hasFocus() { return false; }
+	/* AOSP hasFocus: this view *or any descendant* holds focus. GTK's
+	 * focus lives on the wrapper/inner widget of the focused view, so the
+	 * check is "the window's focus widget is inside this view's GTK
+	 * subtree" (queue item 114; used to be constant false, which made
+	 * focus-gating layouts treat every container as unfocused). */
+	public boolean hasFocus() {
+		return nativeHasFocus(widget);
+	}
 	public boolean isLayoutRequested() { return layoutRequested; }
 	public int getBaseline() { return -1; }
-	public boolean hasFocusable() { return false; }
+	/* AOSP hasFocusable: focusable in either mode. This mirrors ATL's
+	 * own focus policy (requestFocus accepts a view when it is
+	 * atl_focusable), not AOSP's flag bookkeeping. */
+	public boolean hasFocusable() {
+		return atl_focusable || atl_focusable_in_touch_mode;
+	}
 	private static native boolean nativeIsFocused(long widget);
+	private static native boolean nativeHasFocus(long widget);
+	private native void nativeClearFocus(long widget);
 	public boolean isFocused() {
 		return nativeIsFocused(widget);
 	}
@@ -2325,10 +2355,11 @@ public class View implements Drawable.Callback {
 	}
 
 	public void clearFocus() {
-		/* ATL tracks no focus state in Java (hasFocus() is false, focus is
-		 * GTK's), so this matches what Android does for a view that does
-		 * not hold focus. Wiring it to GTK's focus grab is a focus-model
-		 * gap, not this call. */
+		/* If this view's GTK subtree holds the window focus, drop it
+		 * (the JNI helper only resets when focus is inside the subtree,
+		 * so an unrelated view is never unfocused). Focus itself stays
+		 * GTK's; Java only ever read it back through hasFocus. */
+		nativeClearFocus(widget);
 	}
 
 	public static View inflate(Context context, int resource, ViewGroup root) {
@@ -2963,7 +2994,23 @@ public class View implements Drawable.Callback {
 
 	public void setAnimation(Animation animation) {}
 
-	public boolean performAccessibilityAction(int action, Bundle arguments) { return false; }
+	/* AOSP: accessibility services drive view actions through this. ATL
+	 * has no a11y node infrastructure (its AccessibilityDelegate has no
+	 * performAccessibilityAction hook), so only the actions a view can
+	 * genuinely perform are handled; everything else returns false, the
+	 * same answer AOSP gives when no receiver takes the action (queue
+	 * item 105). */
+	public boolean performAccessibilityAction(int action, Bundle arguments) {
+		switch (action) {
+		case AccessibilityNodeInfo.ACTION_FOCUS:
+			return requestFocus();
+		case AccessibilityNodeInfo.ACTION_CLEAR_FOCUS:
+			clearFocus();
+			return true;
+		default:
+			return false;
+		}
+	}
 
 	public boolean isDirty() { return false; }
 

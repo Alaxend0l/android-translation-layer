@@ -3,6 +3,11 @@ package android.view.accessibility;
 import java.lang.CharSequence;
 
 public class AccessibilityNodeInfo {
+	/* AOSP action ids used by View.performAccessibilityAction; the fork's
+	 * a11y surface is a stub, but the ids are stable API. */
+	public static final int ACTION_FOCUS = 0x00000008;
+	public static final int ACTION_CLEAR_FOCUS = 0x00000009;
+
 	public static final class AccessibilityAction {
 		public static final AccessibilityAction ACTION_CONTEXT_CLICK = new AccessibilityAction(0, null);
 		public static final AccessibilityAction ACTION_SET_PROGRESS = new AccessibilityAction(0, null);
