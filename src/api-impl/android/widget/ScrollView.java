@@ -21,17 +21,32 @@ public class ScrollView extends FrameLayout {
 
 	public ScrollView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		mScroller = new OverScroller(context);
+		ensureScroller();
 	}
 
 	public ScrollView(Context context) {
 		super(context);
-		mScroller = new OverScroller(context);
+		ensureScroller();
+	}
+
+	/*
+	 * Created on demand: ATL's native code can call computeScroll() from
+	 * WrapperWidget.c's size-allocate callback (have_custom_computeScroll ->
+	 * J__View__computeScroll) while the Java constructor chain is still
+	 * running, so computeScroll() must not depend on the constructor body
+	 * having finished.  On aarch64 that ordering is hit by
+	 * org.akanework.gramophone's HorizontalScrollView.
+	 */
+	private OverScroller ensureScroller() {
+		if (mScroller == null) {
+			mScroller = new OverScroller(getContext());
+		}
+		return mScroller;
 	}
 
 	@Override
 	public void computeScroll() {
-		if (mScroller.computeScrollOffset()) {
+		if (ensureScroller().computeScrollOffset()) {
 			int oldX = getScrollX();
 			int oldY = getScrollY();
 			int x = mScroller.getCurrX();
@@ -75,11 +90,11 @@ public class ScrollView extends FrameLayout {
 			final int scrollY = getScrollY();
 			dy = Math.max(0, Math.min(scrollY + dy, maxY)) - scrollY;
 
-			mScroller.startScroll(getScrollX(), scrollY, 0, dy);
+			ensureScroller().startScroll(getScrollX(), scrollY, 0, dy);
 			postInvalidateOnAnimation();
 		} else {
-			if (!mScroller.isFinished()) {
-				mScroller.abortAnimation();
+			if (!ensureScroller().isFinished()) {
+				ensureScroller().abortAnimation();
 			}
 			scrollBy(dx, dy);
 		}
