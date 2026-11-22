@@ -28,6 +28,14 @@ public class SeekBar extends AbsSeekBar {
 		this.max = max;
 		native_setMax(widget, max);
 	}
+
+	/* The GtkRange needs the range itself set, and its native_setProgress
+	 * takes the raw progress (not a fraction like ProgressBar's). */
+	@Override
+	protected void applyInitialRange() {
+		native_setMax(widget, max);
+		native_setProgress(widget, progress);
+	}
 	@Override
 	public void setProgress(int progress) {
 		this.progress = progress;
