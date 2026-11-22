@@ -1838,12 +1838,15 @@ public class View implements Drawable.Callback {
 
 	@Export
 	protected int getSuggestedMinimumHeight() {
-		return getMinimumHeight();
+		/* AOSP: the larger of the explicit minimum and the background's. */
+		return Math.max(getMinimumHeight(),
+		                background != null ? background.getMinimumHeight() : 0);
 	}
 
 	@Export
 	protected int getSuggestedMinimumWidth() {
-		return getMinimumWidth();
+		return Math.max(getMinimumWidth(),
+		                background != null ? background.getMinimumWidth() : 0);
 	}
 
 	/**
