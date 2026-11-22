@@ -245,8 +245,7 @@ public class ListActivity extends Activity {
 			    + "'android.R.id.list'");
 		}
 		if (emptyView != null) {
-			// FIXME
-			//mList.setEmptyView(emptyView);
+			mList.setEmptyView(emptyView);
 		}
 		mList.setOnItemClickListener(mOnClickListener);
 		if (mFinishedStart) {
@@ -321,7 +320,10 @@ public class ListActivity extends Activity {
 
 	private AdapterView.OnItemClickListener mOnClickListener = new AdapterView.OnItemClickListener() {
 		public void onItemClick(AdapterView parent, View v, int position, long id) {
-			//onListItemClick((ListView)parent, v, position, id);
+			// AOSP ListActivity forwards clicks to the subclass hook; without this,
+			// overriding onListItemClick() does nothing. (dx/dexed: anonymous class,
+			// no lambda.)
+			onListItemClick((ListView)parent, v, position, id);
 		}
 	};
 }

@@ -970,6 +970,13 @@ public class View implements Drawable.Callback {
 	private int[] drawableState;
 	private boolean duplicateParentState = false;
 
+	// android:fitsSystemWindows / setFitsSystemWindows(). ATL has no system
+	// windows (no status or navigation bar to inset), so this only records the
+	// state apps ask for; it used to be hardcoded true, which made apps that
+	// assert !getFitsSystemWindows() before installing a window insets listener
+	// (e.g. Gramophone's enableEdgeToEdgePaddingListener) abort at startup.
+	private boolean fitsSystemWindows = false;
+
 	private Drawable background;
 	private int backgroundTint = 0;
 	private int mForegroundGravity = Gravity.START | Gravity.TOP;
@@ -1145,6 +1152,7 @@ public class View implements Drawable.Callback {
 			setStateListAnimator(AnimatorInflater.loadStateListAnimator(context, resId));
 		}
 		duplicateParentState = a.getBoolean(com.android.internal.R.styleable.View_duplicateParentState, false);
+		fitsSystemWindows = a.getBoolean(com.android.internal.R.styleable.View_fitsSystemWindows, false);
 		a.recycle();
 	}
 
@@ -1358,7 +1366,9 @@ public class View implements Drawable.Callback {
 	protected native void nativeSetOnClickListener(long widget);
 
 	private OnScrollChangeListener on_scroll_change_listener = null;
-	public void setOnScrollChangeListener(OnScrollChangeListener l) {}
+	public void setOnScrollChangeListener(OnScrollChangeListener l) {
+		on_scroll_change_listener = l;
+	}
 
 	public /*native*/ void setOnSystemUiVisibilityChangeListener(OnSystemUiVisibilityChangeListener l) {}
 	public final int getWidth() {
@@ -1641,16 +1651,27 @@ public class View implements Drawable.Callback {
 	}
 
 	public void scrollTo(int x, int y) {
-		scrollX = x;
-		scrollY = y;
-		invalidate();
+		// AOSP does nothing when the position is unchanged, then routes the
+		// change through onScrollChanged (which notifies the listener).
+		if (scrollX != x || scrollY != y) {
+			int oldX = scrollX;
+			int oldY = scrollY;
+			scrollX = x;
+			scrollY = y;
+			onScrollChanged(scrollX, scrollY, oldX, oldY);
+			invalidate();
+		}
 	}
 
 	protected int computeVerticalScrollOffset() {
 		return -1;
 	}
 
-	protected void onScrollChanged(int l, int t, int oldl, int oldt) {}
+	protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+		if (on_scroll_change_listener != null) {
+			on_scroll_change_listener.onScrollChange(this, l, t, oldl, oldt);
+		}
+	}
 
 	public void getLocationOnScreen(int[] location) {
 		Rect rect = new Rect();
@@ -1723,7 +1744,7 @@ public class View implements Drawable.Callback {
 	}
 
 	public void addOnAttachStateChangeListener(OnAttachStateChangeListener l) {
-		onAttachStateChangeListener = l;
+		attach_state_listeners.add(l);
 	}
 
 	public Context getContext() {
@@ -1985,7 +2006,12 @@ public class View implements Drawable.Callback {
 
 	public int getOverScrollMode() { return 0; }
 
-	public void setFitsSystemWindows(boolean fitsSystemWindows) {}
+	public void setFitsSystemWindows(boolean fitsSystemWindows) {
+		if (this.fitsSystemWindows != fitsSystemWindows) {
+			this.fitsSystemWindows = fitsSystemWindows;
+			requestLayout();
+		}
+	}
 
 	public void setWillNotDraw(boolean value) {}
 
@@ -2283,7 +2309,7 @@ public class View implements Drawable.Callback {
 		return importantForAccessibility;
 	}
 
-	public boolean getFitsSystemWindows() { return true; }
+	public boolean getFitsSystemWindows() { return fitsSystemWindows; }
 
 	public void setOnApplyWindowInsetsListener(View.OnApplyWindowInsetsListener l) {}
 
@@ -2325,7 +2351,11 @@ public class View implements Drawable.Callback {
 		postInvalidate();
 	}
 
-	public void setPaddingRelative(int start, int top, int end, int bottom) {}
+	public void setPaddingRelative(int start, int top, int end, int bottom) {
+		// This View is always LTR (getLayoutDirection() returns LAYOUT_DIRECTION_LTR),
+		// so start maps to left and end maps to right.
+		setPadding(start, top, end, bottom);
+	}
 
 	private native boolean nativeIsAttachedToWindow(long widget);
 	public boolean isAttachedToWindow() {
@@ -2340,6 +2370,44 @@ public class View implements Drawable.Callback {
 			view = (View)view.parent;
 		}
 		return view;
+	}
+
+	// See ViewRootImpl: ATL has no Android window session (GTK windows), but
+	// compat code reflects on getViewRootImpl()/mAttachInfo, so the root view
+	// of each ATL window carries one describing that window.
+	ViewRootImpl mAtlViewRootImpl;
+
+	/**
+	 * AOSP: the ViewRootImpl of the window this view is attached to, or null
+	 * when the view is not attached to a window. ATL reports the same null
+	 * for detached views; attached views get the per-window stand-in whose
+	 * visible insets are the window frame (an ATL window has no system bars,
+	 * which is the state AOSP reports those insets for).
+	 */
+	public final ViewRootImpl getViewRootImpl() {
+		if (!isAttachedToWindow())
+			return null;
+		View root = getRootView();
+		if (root.mAtlViewRootImpl == null)
+			root.mAtlViewRootImpl = new ViewRootImpl(root);
+		root.mAtlViewRootImpl.mAttachInfo.mVisibleInsets.set(0, 0, root.getWidth(), root.getHeight());
+		return root.mAtlViewRootImpl;
+	}
+
+	/**
+	 * AOSP's per-window attach state shared by the views of a window. ATL
+	 * keeps only the parts compat code reads reflectively
+	 * (ViewRootImpl.mAttachInfo, AttachInfo.mVisibleInsets); mVisibleInsets
+	 * tracks the visible frame of the ATL window, i.e. its full size, since
+	 * ATL windows are never partly covered by system bars.
+	 */
+	static final class AttachInfo {
+		final ViewRootImpl mViewRootImpl;
+		final Rect mVisibleInsets = new Rect();
+
+		AttachInfo(ViewRootImpl viewRootImpl) {
+			mViewRootImpl = viewRootImpl;
+		}
 	}
 
 	public boolean isShown() { return true; }
@@ -2429,8 +2497,8 @@ public class View implements Drawable.Callback {
 
 	@Export
 	protected void onAttachedToWindow() {
-		if (onAttachStateChangeListener != null) {
-			onAttachStateChangeListener.onViewAttachedToWindow(this);
+		for (OnAttachStateChangeListener l : attach_state_listeners) {
+			l.onViewAttachedToWindow(this);
 		}
 		if (keepScreenOn)
 			native_keep_screen_on(widget, true);
@@ -2442,8 +2510,8 @@ public class View implements Drawable.Callback {
 
 	@Export
 	protected void onDetachedFromWindow() {
-		if (onAttachStateChangeListener != null) {
-			onAttachStateChangeListener.onViewDetachedFromWindow(this);
+		for (OnAttachStateChangeListener l : attach_state_listeners) {
+			l.onViewDetachedFromWindow(this);
 		}
 		if (keepScreenOn)
 			native_keep_screen_on(widget, false);
@@ -2496,11 +2564,10 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	private OnAttachStateChangeListener onAttachStateChangeListener;
+	private final CopyOnWriteArrayList<OnAttachStateChangeListener> attach_state_listeners =
+			new CopyOnWriteArrayList<OnAttachStateChangeListener>();
 	public void removeOnAttachStateChangeListener(OnAttachStateChangeListener listener) {
-		if (onAttachStateChangeListener == listener) {
-			onAttachStateChangeListener = null;
-		}
+		attach_state_listeners.remove(listener);
 	}
 
 	@Export
@@ -2787,10 +2854,10 @@ public class View implements Drawable.Callback {
 	public AccessibilityDelegate getAccessibilityDelegate() { return null; }
 
 	public void setScrollX(int value) {
-		this.scrollX = value;
+		scrollTo(value, scrollY);
 	}
 	public void setScrollY(int value) {
-		this.scrollY = value;
+		scrollTo(scrollX, value);
 	}
 
 	@Export

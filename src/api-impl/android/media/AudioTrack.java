@@ -24,9 +24,14 @@ public class AudioTrack {
 	int bufferSizeInBytes;
 	int mode;
 	private int sessionId;
+	private boolean initialized = false;
 	private int playbackState = PLAYSTATE_STOPPED;
 	private int playbackHeadPosition = 0;
 	private float volume = 1.f;
+	/* Data written while the track is paused. Android buffers those writes
+	 * and plays them on play(); ALSA refuses them (writei returns 0), which
+	 * deadlocks media3's stalled-write handling (Gramophone, 2026-11-22). */
+	private final java.io.ByteArrayOutputStream pendingWhilePaused = new java.io.ByteArrayOutputStream();
 
 	// for native code's use
 	long pcm_handle;
@@ -37,7 +42,9 @@ public class AudioTrack {
 	static int frames;
 	OnPlaybackPositionUpdateListener periodic_update_listener;
 
-	native void native_constructor(int streamType, int sampleRateInHz, int num_channels, int audioFormat, int bufferSizeInBytes, int mode);
+	/* Returns 0 on success, negative if the PCM device could not be opened
+	 * (then the track is STATE_UNINITIALIZED, like Android's behaviour). */
+	private native int native_constructor(int streamType, int sampleRateInHz, int num_channels, int audioFormat, int bufferSizeInBytes, int mode);
 	public AudioTrack(int streamType, int sampleRateInHz, int channelConfig, int audioFormat, int bufferSizeInBytes, int mode) {
 		this.streamType = streamType;
 		this.sampleRateInHz = sampleRateInHz;
@@ -47,7 +54,7 @@ public class AudioTrack {
 		this.mode = mode;
 
 		System.out.println("\n\n\nAudioTrack(" + streamType + ", " + sampleRateInHz + ", " + channelConfig + ", " + audioFormat + ", " + bufferSizeInBytes + ", " + mode + "); called\n\n\n\n");
-		native_constructor(streamType, sampleRateInHz, channelConfig, audioFormat, bufferSizeInBytes, mode);
+		initialized = native_constructor(streamType, sampleRateInHz, channelConfig, audioFormat, bufferSizeInBytes, mode) == 0;
 	}
 
 	public AudioTrack(int streamType, int sampleRateInHz, int channelConfig, int audioFormat, int bufferSizeInBytes, int mode, int sessionId) {
@@ -76,26 +83,56 @@ public class AudioTrack {
 
 	public void play() {
 		System.out.println("calling AudioTrack.play()\n");
-		playbackState = PLAYSTATE_PLAYING;
-		native_play();
+		synchronized (this) {
+			playbackState = PLAYSTATE_PLAYING;
+			native_play();
+			/* Data written while paused plays after the new writes. */
+			drainPendingLocked();
+		}
 	}
 
 	public void stop() {
-		System.out.println("STUB: AudioTrack.stop()\n");
-		playbackState = PLAYSTATE_STOPPED;
+		System.out.println("calling AudioTrack.stop()\n");
+		synchronized (this) {
+			/* Android stop() stops playback and discards pending data. */
+			playbackState = PLAYSTATE_STOPPED;
+			pendingWhilePaused.reset();
+			native_flush();
+		}
 	}
 
 	public void flush() {
-		System.out.println("STUB: AudioTrack.flush()\n");
+		System.out.println("calling AudioTrack.flush()\n");
+		synchronized (this) {
+			/* Android flush() (valid when paused/stopped) discards the
+			 * data written but not yet played. */
+			pendingWhilePaused.reset();
+			native_flush();
+		}
 	}
 
 	public void release() {
 		System.out.println("calling AudioTrack.release()\n");
-		native_release();
+		synchronized (this) {
+			pendingWhilePaused.reset();
+			native_release();
+		}
 	}
 
 	public int getState() {
-		return 1; // TODO: fix up the native part and make this work properly
+		return initialized ? 1 : 0; // STATE_INITIALIZED / STATE_UNINITIALIZED
+	}
+
+	private void drainPendingLocked() {
+		if (pendingWhilePaused.size() == 0)
+			return;
+		byte[] data = pendingWhilePaused.toByteArray();
+		pendingWhilePaused.reset();
+		int frames = data.length / channels / 2; // 2 means PCM16
+		int ret = native_write(data, 0, frames, volume);
+		if (ret > 0) {
+			playbackHeadPosition += ret;
+		}
 	}
 
 	public int write(byte[] audioData, int offsetInBytes, int sizeInBytes) {
@@ -106,13 +143,27 @@ public class AudioTrack {
 		    || (offsetInBytes + sizeInBytes > audioData.length)) {
 			return ERROR_BAD_VALUE;
 		}
-
-		int framesToWrite = sizeInBytes / channels / 2; // 2 means PCM16
-		int ret = native_write(audioData, offsetInBytes, framesToWrite, volume);
-		if (ret > 0) {
-			playbackHeadPosition += ret;
+		if (!initialized) {
+			/* Android throws instead of touching an uninitialized track
+			 * (ATL previously kept a bad PCM handle and segfaulted). */
+			throw new IllegalStateException("can not be used in the UNINITIALIZED state");
 		}
-		return ret * channels * 2; // 2 means PCM16
+
+		synchronized (this) {
+			if (playbackState == PLAYSTATE_PAUSED) {
+				/* Android buffers writes to a paused track; ALSA returns 0,
+				 * which made media3 spin in handleStalledWrite forever. */
+				pendingWhilePaused.write(audioData, offsetInBytes, sizeInBytes);
+				return sizeInBytes;
+			}
+			drainPendingLocked();
+			int framesToWrite = sizeInBytes / channels / 2; // 2 means PCM16
+			int ret = native_write(audioData, offsetInBytes, framesToWrite, volume);
+			if (ret > 0) {
+				playbackHeadPosition += ret;
+			}
+			return ret * channels * 2; // 2 means PCM16
+		}
 	}
 
 	public int write(ByteBuffer audioData, int sizeInBytes, int writeMode) {
@@ -129,13 +180,27 @@ public class AudioTrack {
 		    || (offsetInShorts + sizeInShorts > audioData.length)) {
 			return ERROR_BAD_VALUE;
 		}
-
-		int framesToWrite = sizeInShorts / channels;
-		int ret = native_write(audioData, offsetInShorts, framesToWrite, volume);
-		if (ret > 0) {
-			playbackHeadPosition += ret;
+		if (!initialized) {
+			throw new IllegalStateException("can not be used in the UNINITIALIZED state");
 		}
-		return ret * channels;
+
+		synchronized (this) {
+			if (playbackState == PLAYSTATE_PAUSED) {
+				for (int i = offsetInShorts; i < offsetInShorts + sizeInShorts; i++) {
+					short s = audioData[i];
+					pendingWhilePaused.write((byte) (s & 0xff));
+					pendingWhilePaused.write((byte) ((s >> 8) & 0xff));
+				}
+				return sizeInShorts * 2;
+			}
+			drainPendingLocked();
+			int framesToWrite = sizeInShorts / channels;
+			int ret = native_write(audioData, offsetInShorts, framesToWrite, volume);
+			if (ret > 0) {
+				playbackHeadPosition += ret;
+			}
+			return ret * channels;
+		}
 	}
 
 	public int getAudioSessionId() {
@@ -205,12 +270,19 @@ public class AudioTrack {
 
 	public void pause() {
 		System.out.println("calling AudioTrack.pause()\n");
-		playbackState = PLAYSTATE_PAUSED;
-		native_pause();
+		synchronized (this) {
+			playbackState = PLAYSTATE_PAUSED;
+			native_pause();
+		}
 	}
 
 	public int getPlaybackHeadPosition() {
-		return playbackHeadPosition - native_getPlaybackHeadPosition();
+		/* Android reports frames consumed since play() and never goes
+		 * backwards; some ALSA plugins report a delay larger than the
+		 * frames written (e.g. while paused), which would read as the
+		 * head rewinding and make media3 declare an underrun. Clamp it. */
+		int head = playbackHeadPosition - native_getPlaybackHeadPosition();
+		return head < 0 ? 0 : head;
 	}
 
 	public int setVolume(float volume) {
@@ -223,6 +295,7 @@ public class AudioTrack {
 	}
 
 	private native int native_getPlaybackHeadPosition();
+	private native void native_flush();
 	public native void native_play();
 	public native void native_pause();
 	private native int native_write(byte[] audioData, int offsetInBytes, int framesToWrite, float volume);

@@ -99,7 +99,13 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 				System.err.println("Failed to find main Activity");
 			System.exit(1);
 		}
-		return internalCreateActivity(className, native_window, uri != null ? new Intent("android.intent.action.VIEW", uri) : new Intent());
+		// A launcher start on Android carries action=MAIN and category=LAUNCHER;
+		// apps switch on getIntent().getAction() (org.billthefarmer.editor does at
+		// Editor.onCreate), so an empty Intent here made them throw
+		// NullPointerException on the switch selector.
+		return internalCreateActivity(className, native_window,
+		                              uri != null ? new Intent(Intent.ACTION_VIEW, uri)
+		                                          : new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER));
 	}
 
 	public Activity() {
@@ -270,9 +276,12 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	public void setContentView(int layoutResID) throws Exception {
 		Slog.i(TAG, "- setContentView - yay!");
 
-		root_view = getLayoutInflater().inflate(layoutResID, null, false);
+		// Window inflates into its content ViewGroup with attachToRoot=true, like
+		// AOSP's PhoneWindow: layouts with a <merge> root have no View of their
+		// own and only work that way.
+		window.setContentView(layoutResID);
+		root_view = window.getDecorView();
 
-		window.setContentView(root_view);
 		onContentChanged();
 	}
 
@@ -698,11 +707,11 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return System.identityHashCode(this.getApplicationContext());
 	}
 
-	boolean moveTaskToBack(boolean nonroot) {
+	public boolean moveTaskToBack(boolean nonroot) {
 		return true;
 	}
 
-	void setFinishOnTouchOutside(boolean finish) {
+	public void setFinishOnTouchOutside(boolean finish) {
 	}
 
 	public void closeOptionsMenu() {
@@ -730,7 +739,7 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public ActionBar getActionBar() {
-		return null;
+		return window.getActionBar();
 	}
 
 	@Override

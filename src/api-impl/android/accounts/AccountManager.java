@@ -178,11 +178,38 @@ public class AccountManager {
 		return true;
 	}
 
+	// AOSP keeps the registration in AccountManagerService and re-notifies on
+	// account changes; ATL's account store is per-process, so we keep the list
+	// here and fire once on registration (updateImmediately).
+	private final java.util.List<OnAccountsUpdateListener> accounts_updated_listeners =
+		new java.util.ArrayList<OnAccountsUpdateListener>();
+
+	public void addOnAccountsUpdatedListener(final OnAccountsUpdateListener listener,
+	                                         Handler handler, boolean updateImmediately) {
+		addOnAccountsUpdatedListener(listener, handler, updateImmediately, null);
+	}
+
 	public void addOnAccountsUpdatedListener(final OnAccountsUpdateListener listener,
 	                                         Handler handler, boolean updateImmediately, String[] accountTypes) {
+		if (listener == null) {
+			return;
+		}
+		if (!accounts_updated_listeners.contains(listener)) {
+			accounts_updated_listeners.add(listener);
+		}
+		if (updateImmediately) {
+			Handler h = handler != null ? handler : new Handler(Looper.getMainLooper());
+			h.post(new Runnable() {
+				@Override
+				public void run() {
+					listener.onAccountsUpdated(getAccounts());
+				}
+			});
+		}
 	}
 
 	public void removeOnAccountsUpdatedListener(OnAccountsUpdateListener listener) {
+		accounts_updated_listeners.remove(listener);
 	}
 
 	public Map<Account, Integer> getAccountsAndVisibilityForPackage(String packageName,

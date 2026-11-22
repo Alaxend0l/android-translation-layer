@@ -28,6 +28,22 @@ public class ProgressBar extends View {
 		indeterminate = a.getBoolean(com.android.internal.R.styleable.ProgressBar_indeterminate, false)
 		             || a.getBoolean(com.android.internal.R.styleable.ProgressBar_indeterminateOnly, false);
 		native_setIndeterminate(indeterminate);
+		/* AOSP reads android:max/android:progress in the constructor. Apply
+		 * them through applyInitialRange(), NOT through the virtual
+		 * setMax/setProgress: Material's LinearProgressIndicator overrides
+		 * setProgress/getProgressDrawable, its override would run here
+		 * before its own ProgressDrawable is installed and the typed
+		 * getProgressDrawable() cast throws ClassCastException (Fossify File
+		 * Manager, harness run agent-20261121-185746-12). */
+		max = a.getInt(com.android.internal.R.styleable.ProgressBar_max, max);
+		if (max <= 0)
+			max = 1;
+		progress = a.getInt(com.android.internal.R.styleable.ProgressBar_progress, progress);
+		if (progress < 0)
+			progress = 0;
+		else if (progress > max)
+			progress = max;
+		applyInitialRange();
 		/* FIXME hack: NewPipe expects this to not be null, but for some reason it is */
 		if (indeterminateDrawable == null)
 			indeterminateDrawable = new Drawable() {
@@ -58,7 +74,7 @@ public class ProgressBar extends View {
 
 	public void setIndeterminate(boolean indeterminate) {
 		native_setIndeterminate(indeterminate);
-		indeterminate = true;
+		this.indeterminate = indeterminate;
 	}
 
 	public Drawable getProgressDrawable() {
@@ -71,6 +87,14 @@ public class ProgressBar extends View {
 
 	public void setMax(int max) {
 		this.max = max;
+		native_setProgress(widget, progress / (float)max);
+	}
+
+	/* Push the XML android:max/android:progress to the native widget after
+	 * the constructor stored them. Deliberately not routed through the
+	 * virtual setMax/setProgress (see constructor comment). Subclasses with
+	 * different native backends (SeekBar/GtkRange) override this. */
+	protected void applyInitialRange() {
 		native_setProgress(widget, progress / (float)max);
 	}
 

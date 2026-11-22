@@ -498,8 +498,14 @@ public class Intent implements Parcelable {
 	public Intent(Intent o) {
 		this.action = o.action;
 		this.data = o.data;
-		this.extras = o.extras;
 		this.component = o.component;
+		this.flags = o.flags;
+		this.type = o.type;
+		this.packageName = o.packageName;
+		this.selector = o.selector;
+		// AOSP copies the extras Bundle; sharing it made a copy mutate the original.
+		// Never null: util.c intent_serialize dereferences it.
+		this.extras = o.extras != null ? new Bundle(o.extras) : new Bundle();
 	}
 	public Intent(String action) {
 		this.action = action;
@@ -666,14 +672,14 @@ public class Intent implements Parcelable {
 	}
 
 	public Intent putExtras(Intent src) {
-		// FIXME HACK
-		this.extras = src.getExtras();
+		if (src.extras != null)
+			this.extras.putAll(src.extras);
 		return this;
 	}
 
 	public Intent putExtras(Bundle extras) {
-		// FIXME HACK
-		this.extras = extras;
+		if (extras != null)
+			this.extras.putAll(extras);
 		return this;
 	}
 

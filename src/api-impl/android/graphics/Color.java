@@ -155,15 +155,19 @@ public class Color {
 		float delta = max - min;
 
 		if (delta == 0) {
-			hsv[0] = 6;
+			// Treat grayscale colors as red (hue = 0).
+			hsv[0] = 0;
 		} else if (max == red) {
-			hsv[0] = (green - blue) / delta % 6;
+			hsv[0] = (green - blue) / delta;
 		} else if (max == green) {
-			hsv[0] = 2 + (blue - red) / delta + 2;
+			hsv[0] = 2 + (blue - red) / delta;
 		} else {
-			hsv[0] = 4 + (red - green) / delta + 4;
+			hsv[0] = 4 + (red - green) / delta;
 		}
 		hsv[0] *= 60;
+		if (hsv[0] < 0) {
+			hsv[0] += 360;
+		}
 
 		if (max == 0) {
 			hsv[1] = 0;
@@ -175,10 +179,23 @@ public class Color {
 
 	public static int HSVToColor(float[] hsv) {
 		float h = hsv[0];
+		if (h < 0 || h >= 360) {
+			h = 0;
+		}
 		float s = hsv[1];
+		if (s < 0) {
+			s = 0;
+		} else if (s > 1) {
+			s = 1;
+		}
 		float v_ = hsv[2];
+		if (v_ < 0) {
+			v_ = 0;
+		} else if (v_ > 1) {
+			v_ = 1;
+		}
 		int hi = (int)Math.floor(h / 60) % 6;
-		float f = (h / 60 - (float)Math.floor(h / 60)) * 6;
+		float f = h / 60 - (float)Math.floor(h / 60);
 		int p = (int)(v_ * (1 - s) * 255.f + 0.5f);
 		int q = (int)(v_ * (1 - f * s) * 255.f + 0.5f);
 		int t = (int)(v_ * (1 - (1 - f) * s) * 255.f + 0.5f);

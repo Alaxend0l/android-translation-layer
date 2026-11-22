@@ -129,6 +129,13 @@ public class EditText extends TextView {
 	public void setText(CharSequence text) {
 		native_setText(widget, text == null ? "" : text.toString());
 	}
+
+	/* Route the two-arg form (e.g. BufferType.EDITABLE) to our own native
+	 * setter: TextView's would box_get_label() the GtkText itself. */
+	@Override
+	public void setText(CharSequence text, BufferType type) {
+		setText(text);
+	}
 	@Override
 	public void setTextSize(float size) {}
 

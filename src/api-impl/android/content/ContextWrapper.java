@@ -67,6 +67,11 @@ public class ContextWrapper extends Context {
 	}
 
 	@Override
+	public ComponentName startForegroundService(Intent intent) {
+		return this.baseContext.startForegroundService(intent);
+	}
+
+	@Override
 	public boolean bindService(Intent intent, ServiceConnection serviceConnection, int flags) {
 		return this.baseContext.bindService(intent, serviceConnection, flags);
 	}

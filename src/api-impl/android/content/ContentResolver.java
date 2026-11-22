@@ -19,25 +19,128 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class ContentResolver {
 	public static final String SCHEME_CONTENT = "content";
 
+	// AOSP name; used by ContentProvider.openTypedAssetFile thumbnail hints.
+	public static final String EXTRA_SIZE = "extraSize";
+
 	public static final String SYNC_EXTRAS_IGNORE_SETTINGS = "ignore_settings";
 
-	public final void registerContentObserver(Uri uri, boolean notifyForDescendants, ContentObserver observer) {
+	public static final int SYNC_OBSERVER_TYPE_STATUS = 1 << 0;
+	public static final int SYNC_OBSERVER_TYPE_SETTINGS = 1 << 1;
+	public static final int SYNC_OBSERVER_TYPE_PENDING = 1 << 2;
+	public static final int SYNC_OBSERVER_TYPE_ACTIVE = 1 << 3;
+	public static final int SYNC_OBSERVER_TYPE_ANY = Integer.MAX_VALUE;
+
+	// ATL has no sync service: a status-change listener can never fire, so the
+	// callback is only kept as the opaque handle AOSP returns.
+	public static Object addStatusChangeListener(int mask, SyncStatusObserver callback) {
+		return callback;
 	}
-	public final void unregisterContentObserver(ContentObserver observer) {
+
+	public static void removeStatusChangeListener(Object handle) {
 	}
-	public void notifyChange(Uri uri, ContentObserver observer) {
-	}
-	public void notifyChange(Uri uri, ContentObserver observer, boolean syncToNetwork) {
-		notifyChange(uri, observer);
-	}
+
 	public int getUserId() {
 		return 0;
 	}
+
+	private static final class ContentObserverEntry {
+		final Uri uri;
+		final boolean descendants;
+		final ContentObserver observer;
+
+		ContentObserverEntry(Uri uri, boolean descendants, ContentObserver observer) {
+			this.uri = uri;
+			this.descendants = descendants;
+			this.observer = observer;
+		}
+	}
+
+	// ATL runs one app per process, so a per-process static registry matches
+	// AOSP's per-process ContentResolver behaviour.
+	private static final List<ContentObserverEntry> contentObservers = new ArrayList<>();
+
+	public final void registerContentObserver(Uri uri, boolean notifyForDescendants, ContentObserver observer) {
+		if (observer == null)
+			throw new NullPointerException("content observer is null");
+		synchronized (contentObservers) {
+			// AOSP re-registration updates the existing entry.
+			for (int i = contentObservers.size() - 1; i >= 0; i--) {
+				ContentObserverEntry e = contentObservers.get(i);
+				if (e.observer == observer && Objects.equals(e.uri, uri))
+					contentObservers.remove(i);
+			}
+			contentObservers.add(new ContentObserverEntry(uri, notifyForDescendants, observer));
+		}
+	}
+
+	public final void unregisterContentObserver(ContentObserver observer) {
+		synchronized (contentObservers) {
+			for (int i = contentObservers.size() - 1; i >= 0; i--) {
+				if (contentObservers.get(i).observer == observer)
+					contentObservers.remove(i);
+			}
+		}
+	}
+
+	public void notifyChange(Uri uri, ContentObserver observer) {
+		notifyChangeInternal(uri, observer, 0);
+	}
+
+	public void notifyChange(Uri uri, ContentObserver observer, boolean syncToNetwork) {
+		notifyChangeInternal(uri, observer, 0);
+	}
+
+	public final void notifyChange(Uri uri, ContentObserver observer, int flags) {
+		notifyChangeInternal(uri, observer, flags);
+	}
+
+	private void notifyChangeInternal(Uri uri, ContentObserver observer, int flags) {
+		List<ContentObserverEntry> snapshot;
+		synchronized (contentObservers) {
+			snapshot = new ArrayList<>(contentObservers);
+		}
+		for (int i = 0; i < snapshot.size(); i++) {
+			ContentObserverEntry entry = snapshot.get(i);
+			boolean selfChange = entry.observer == observer;
+			if (selfChange && !entry.observer.deliverSelfNotifications())
+				continue;
+			if (!uriMatches(entry.uri, entry.descendants, uri))
+				continue;
+			entry.observer.dispatchChange(selfChange, uri, flags);
+		}
+	}
+
+	// AOSP URI matching: exact; or uri is under entry.uri (honouring the
+	// descendants flag); or entry.uri is under uri - an observer registered
+	// below a changed URI is always notified.
+	private static boolean uriMatches(Uri entryUri, boolean descendants, Uri changedUri) {
+		if (entryUri == null || changedUri == null)
+			return true;
+		if (entryUri.equals(changedUri))
+			return true;
+		if (uriUnder(changedUri, entryUri, descendants))
+			return true;
+		return uriUnder(entryUri, changedUri, true);
+	}
+
+	private static boolean uriUnder(Uri uri, Uri base, boolean descendants) {
+		if (!Objects.equals(uri.getScheme(), base.getScheme())
+				|| !Objects.equals(uri.getAuthority(), base.getAuthority()))
+			return false;
+		if (descendants || uri.getPathSegments().size() == base.getPathSegments().size()) {
+			return uri.getEncodedPath().startsWith(base.getEncodedPath());
+		}
+		return false;
+	}
+
 	public final void registerContentObserver(Uri uri, boolean notifyForDescendants, ContentObserver observer, int userHandle) {
+		// ATL is single-user.
+		registerContentObserver(uri, notifyForDescendants, observer);
 	}
 
 	public ParcelFileDescriptor openFileDescriptor(Uri uri, String mode) throws FileNotFoundException {

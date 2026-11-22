@@ -50,6 +50,9 @@ public class ConnectivityManager {
 
 		NetworkCapabilities capabilities = new NetworkCapabilities();
 		capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+		// AOSP marks a network that GNetworkMonitor considers reachable as validated; apps and
+		// WorkManager's CONNECTED constraint gate on it, so it must be present here.
+		capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
 
 		if (!isActiveNetworkMetered())
 			capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
@@ -66,4 +69,16 @@ public class ConnectivityManager {
 	public ProxyInfo getDefaultProxy() { return null; }
 
 	public LinkProperties getLinkProperties(Network network) { return null; }
+
+	// AOSP values (ConnectivityManager.RESTRICT_BACKGROUND_STATUS_*).
+	public static final int RESTRICT_BACKGROUND_STATUS_INVALID = 0;
+	public static final int RESTRICT_BACKGROUND_STATUS_DISABLED = 1;
+	public static final int RESTRICT_BACKGROUND_STATUS_ENABLED = 2;
+	public static final int RESTRICT_BACKGROUND_STATUS_WHITELISTED = 3;
+
+	public int getRestrictBackgroundStatus() {
+		// ATL has no data-saver / background-restriction state; DISABLED is
+		// what Android reports when data saver is off.
+		return RESTRICT_BACKGROUND_STATUS_DISABLED;
+	}
 }

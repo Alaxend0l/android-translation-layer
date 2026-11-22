@@ -662,6 +662,19 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 			this.weight = weight;
 		}
 
+		// AOSP copy constructor: apps use it to clone an existing pair of
+		// layout params (e.g. FAB/coordinator layouts sizing a child to match
+		// another one).
+		public LayoutParams(LayoutParams source) {
+			copyFrom(source);
+		}
+
+		public void copyFrom(LayoutParams source) {
+			width = source.width;
+			height = source.height;
+			gravity = source.gravity;
+		}
+
 		public LayoutParams(Context context, AttributeSet attrs) {
 			TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ViewGroup_Layout);
 			setBaseAttributes(a, R.styleable.ViewGroup_Layout_layout_width, R.styleable.ViewGroup_Layout_layout_height);

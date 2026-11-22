@@ -1,6 +1,7 @@
 package android.content;
 
 import android.net.Uri;
+import android.util.Printer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -80,8 +81,12 @@ public class IntentFilter {
 
 	public int match(String action, String type, String scheme, Uri data, Set<String> categories, String logTag) {
 		int ret = 0;
-		if (!matchAction(action)) {
-			ret = -3 /*NO_MATCH_ACTION*/;
+		// AOSP returns NO_MATCH_ACTION as soon as the action does not match
+		// (a null action - no data involved - is not rejected). The old code
+		// stored -3 in ret and then overwrote it with the data-category
+		// result, so every filter matched when the intent had no data.
+		if (action != null && !matchAction(action)) {
+			return -3 /*NO_MATCH_ACTION*/;
 		}
 		if (scheme == null) {
 			ret = 0x00100000 /*MATCH_CATEGORY_EMPTY*/ | 0x00008000 /*MATCH_ADJUSTMENT_NORMAL*/;
@@ -99,5 +104,20 @@ public class IntentFilter {
 
 	public final Iterator authoritiesIterator() {
 		return null;
+	}
+
+	public void dump(Printer pw, String prefix) {
+		// AOSP IntentFilter has no dump() at all; davdroid's debug path calls
+		// invoke-virtual IntentFilter.dump(Printer,String)V (the void
+		// Printer-style dump, as on BroadcastReceiver/Service). Print the
+		// filter contents so the dump output is real, with the descriptor the
+		// call sites resolve to.
+		pw.println(prefix + "Intent Filter:");
+		for (int i = 0; i < actions.size(); i++) {
+			pw.println(prefix + "  action=" + actions.get(i));
+		}
+		for (String category : categories) {
+			pw.println(prefix + "  category=" + category);
+		}
 	}
 }

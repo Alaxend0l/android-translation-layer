@@ -22,6 +22,7 @@ import android.hardware.usb.UsbManager;
 import android.location.LocationManager;
 import android.media.AudioManager;
 import android.media.MediaRouter;
+import android.media.session.MediaSessionManager;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -212,6 +213,8 @@ public final class ContextImpl extends Context {
 				return new BatteryManager();
 			case "download":
 				return new DownloadManager();
+			case "media_session":
+				return new MediaSessionManager(this);
 			default:
 				Slog.e(TAG, "!!!!!!! getSystemService: case >" + name + "< is not implemented yet");
 				return null;
@@ -267,6 +270,16 @@ public final class ContextImpl extends Context {
 			return null;
 		}
 		return targetApp.startOrBindService(intent, null);
+	}
+
+	@Override
+	public ComponentName startForegroundService(Intent intent) {
+		// AOSP starts the service like startService and arms a timeout by which
+		// the service must call startForeground() (ANR/crash otherwise). ATL has
+		// no ActiveServices timeout and Service.startForeground is an in-process
+		// record-keeping call, so starting via startService is the closest real
+		// behaviour; the service's own startForeground() call still lands.
+		return startService(intent);
 	}
 
 	@Override

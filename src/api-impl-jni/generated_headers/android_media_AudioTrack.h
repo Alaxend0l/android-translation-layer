@@ -18,9 +18,9 @@ extern "C" {
 /*
  * Class:     android_media_AudioTrack
  * Method:    native_constructor
- * Signature: (IIIIII)V
+ * Signature: (IIIIII)I
  */
-JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1constructor
+JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1constructor
   (JNIEnv *, jobject, jint, jint, jint, jint, jint, jint);
 
 /*
@@ -53,6 +53,14 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1play
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1pause
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     android_media_AudioTrack
+ * Method:    native_flush
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1flush
   (JNIEnv *, jobject);
 
 /*

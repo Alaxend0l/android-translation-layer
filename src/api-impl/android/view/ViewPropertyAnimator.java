@@ -132,17 +132,21 @@ public class ViewPropertyAnimator {
 		values.clear();
 		if (listener != null)
 			animator.addListener(listener);
-		if (startAction != null || endAction != null) {
+		final Runnable start = startAction;
+		final Runnable end = endAction;
+		startAction = null;
+		endAction = null;
+		if (start != null || end != null) {
 			animator.addListener(new Animator.AnimatorListener() {
 				@Override
 				public void onAnimationStart(Animator animation) {
-					if (startAction != null)
-						startAction.run();
+					if (start != null)
+						start.run();
 				}
 				@Override
 				public void onAnimationEnd(Animator animation) {
-					if (endAction != null)
-						endAction.run();
+					if (end != null)
+						end.run();
 				}
 				@Override
 				public void onAnimationCancel(Animator animation) {}

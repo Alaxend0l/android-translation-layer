@@ -357,11 +357,26 @@ public class LayoutInflater {
 			// Inflate all children.
 			rInflate(childParser, view, childAttrs, true);
 
-			TypedArray ta = context.obtainStyledAttributes(attrs, new int[] {com.android.internal.R.attr.id});
+			TypedArray ta = context.obtainStyledAttributes(attrs,
+				new int[] {com.android.internal.R.attr.id, com.android.internal.R.attr.visibility});
 			int id = ta.getResourceId(0, 0);
 			if (id != 0)
 				view.setId(id);
+			// AOSP parseInclude also honours android:visibility on the <include> tag
+			// (the XML enum is visible=0, invisible=1, gone=2; -1 means not set).
+			int visibility = ta.getInt(1, -1);
 			ta.recycle();
+			switch (visibility) {
+			case 0:
+				view.setVisibility(View.VISIBLE);
+				break;
+			case 1:
+				view.setVisibility(View.INVISIBLE);
+				break;
+			case 2:
+				view.setVisibility(View.GONE);
+				break;
+			}
 
 			group.addView(view);
 		}

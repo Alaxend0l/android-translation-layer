@@ -5,7 +5,7 @@ public class MediaCodecList {
 	public MediaCodecList(int kind) {}
 
 	public static int getCodecCount() {
-		return 6;
+		return 7;
 	}
 
 	public static MediaCodecInfo getCodecInfoAt(int index) {
@@ -22,6 +22,11 @@ public class MediaCodecList {
 				return new MediaCodecInfo("vp8", "video/x-vnd.on2.vp8");
 			case 5:
 				return new MediaCodecInfo("vp9", "video/x-vnd.on2.vp9");
+			case 6:
+				/* ffmpeg provides a native flac decoder; Gramophone skip-to-next
+				 * on a lossless library item is unplayable without this, and
+				 * apps then see an unselected track group (2026-11-22). */
+				return new MediaCodecInfo("flac", "audio/flac");
 			default:
 				return null;
 		}

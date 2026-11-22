@@ -18,8 +18,14 @@ JNIEXPORT jlong JNICALL Java_android_media_AudioRecord_native_1constructor(JNIEn
 
 	/* Open the PCM device in playback mode */
 	ret = snd_pcm_open(&pcm_handle, PCM_DEVICE, SND_PCM_STREAM_CAPTURE, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		/* 0 = no handle: same contract as the disabled-microphone return above
+		 * and as AudioTrack's constructor. Probing the unopened handle is what
+		 * segfaulted the playback thread in AudioTrack.getMinBufferSize (phone
+		 * run pres2, 2026-11-22); the capture path has the same shape. */
 		printf("ERROR: Can't open \"%s\" PCM device. %s\n", PCM_DEVICE, snd_strerror(ret));
+		return 0;
+	}
 
 	snd_pcm_hw_params_alloca(&params);
 	helper_hw_params_init(pcm_handle, params, rate, channel_config, SND_PCM_FORMAT_S16_LE, &channels);
@@ -29,14 +35,21 @@ JNIEXPORT jlong JNICALL Java_android_media_AudioRecord_native_1constructor(JNIEn
 
 	/* Write parameters */
 	ret = snd_pcm_hw_params(pcm_handle, params);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("ERROR: Can't set harware parameters. %s\n", snd_strerror(ret));
+		snd_pcm_close(pcm_handle);
+		return 0;
+	}
 
-	snd_pcm_uframes_t period_size;
+	snd_pcm_uframes_t period_size = 0;
 
 	ret = snd_pcm_hw_params_get_period_size(params, &period_size, 0);
-	if (ret < 0)
+	if (ret < 0 || period_size == 0) {
+		/* Without a period size the start threshold below divides by zero. */
 		printf("Error calling snd_pcm_hw_params_get_period_size: %s\n", snd_strerror(ret));
+		snd_pcm_close(pcm_handle);
+		return 0;
+	}
 
 	snd_pcm_sw_params_t *sw_params;
 
@@ -63,8 +76,14 @@ JNIEXPORT jint JNICALL Java_android_media_AudioRecord_getMinBufferSize(JNIEnv *e
 	unsigned int num_channels;
 
 	ret = snd_pcm_open(&pcm_handle, PCM_DEVICE, SND_PCM_STREAM_CAPTURE, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		/* Same failure mode as AudioTrack.getMinBufferSize (probe 2026-11-22):
+		 * when the capture device cannot be opened, Android returns ERROR (-1)
+		 * and callers (e.g. speech-input and voice-note apps) report the error;
+		 * probing an unopened handle segfaults. */
 		printf("Error calling snd_pcm_open: %s\n", snd_strerror(ret));
+		return -1;
+	}
 
 	snd_pcm_hw_params_alloca(&params);
 	helper_hw_params_init(pcm_handle, params, sampleRateInHz, channelConfig, SND_PCM_FORMAT_S16_LE, &num_channels); // FIXME: a switch?

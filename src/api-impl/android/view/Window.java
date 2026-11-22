@@ -1,6 +1,7 @@
 package android.view;
 
 import android.R;
+import android.app.ActionBar;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
@@ -35,6 +36,8 @@ public class Window {
 
 	public long native_window;
 	private ViewGroup decorView;
+	private Toolbar actionBarView;
+	private ActionBar actionBar;
 
 	private Window.Callback callback;
 	private Context context;
@@ -53,9 +56,19 @@ public class Window {
 		set_jobject(native_window, this);
 	}
 
-	public void addFlags(int flags) {}
-	public void setFlags(int flags, int mask) {}
-	public void clearFlags(int flags) {}
+	public void addFlags(int flags) {
+		setFlags(flags, flags);
+	}
+
+	public void setFlags(int flags, int mask) {
+		// AOSP Window.setFlags updates mWindowAttributes.flags the same way.
+		params.flags = (params.flags & ~mask) | (flags & mask);
+		decorView.setKeepScreenOn((params.flags & WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0);
+	}
+
+	public void clearFlags(int flags) {
+		setFlags(0, flags);
+	}
 
 	public final Callback getCallback() {
 		return this.callback;
@@ -65,14 +78,30 @@ public class Window {
 	}
 
 	public void setContentView(View view) {
+		ensureWindowBackground();
+		decorView.removeAllViews();
+		decorView.addView(view);
+	}
+
+	public void setContentView(int layoutResID) {
+		ensureWindowBackground();
+		decorView.removeAllViews();
+		// AOSP's PhoneWindow inflates the layout into its content ViewGroup with
+		// attachToRoot=true. Inflating with a null parent instead, as this used to
+		// do, breaks layouts whose root is <merge>: such a layout has no View of
+		// its own, its children are only representable once a parent is known.
+		// ATL's decor has no action-bar/title slots, so the content ViewGroup is
+		// the decor FrameLayout itself (the one with android.R.id.content).
+		LayoutInflater.from(context).inflate(layoutResID, decorView, true);
+	}
+
+	private void ensureWindowBackground() {
 		if (decorView.getBackground() == null) {
 			TypedArray ta = context.obtainStyledAttributes(new int[] {R.attr.windowBackground});
 			if (ta.hasValue(0))
 				setBackgroundDrawable(ta.getDrawable(0));
 			ta.recycle();
 		}
-		decorView.removeAllViews();
-		decorView.addView(view);
 	}
 
 	public View getDecorView() {
@@ -89,12 +118,42 @@ public class Window {
 
 	public View findViewById(int id) {
 		if (id == com.android.internal.R.id.action_bar)
-			return new Toolbar(context);
+			return getActionBarView();
 		return decorView.findViewById(id);
 	}
 
+	/*
+	 * ATL's decor is a single content FrameLayout: it has no action-bar slot, so
+	 * the bar is represented by the framework Toolbar kept here (Window used to
+	 * hand out a new Toolbar per findViewById call instead).
+	 */
+	private Toolbar getActionBarView() {
+		if (actionBarView == null) {
+			actionBarView = new Toolbar(context);
+		}
+		return actionBarView;
+	}
+
+	public ActionBar getActionBar() {
+		if (actionBar == null) {
+			// AOSP only creates an action bar for themes with windowActionBar set.
+			// ATL follows that, but treats "not set by the theme" as "yes", which is
+			// what every platform theme does; only an explicit windowActionBar=false
+			// turns the bar off.
+			TypedArray ta = context.obtainStyledAttributes(new int[] {R.attr.windowActionBar});
+			boolean enabled = !ta.hasValue(0) || ta.getBoolean(0, true);
+			ta.recycle();
+			if (!enabled)
+				return null;
+			actionBar = new ActionBar(context, getActionBarView());
+		}
+		return actionBar;
+	}
+
 	public View peekDecorView() {
-		return null;
+		// AOSP returns the decor view once it exists; ATL builds it in the
+		// Window constructor, so it always does.
+		return decorView;
 	}
 
 	public WindowManager.LayoutParams getAttributes() {

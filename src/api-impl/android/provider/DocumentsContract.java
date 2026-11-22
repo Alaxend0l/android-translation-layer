@@ -40,6 +40,7 @@ public final class DocumentsContract {
 	public static final String METHOD_CREATE_WEB_LINK_INTENT = "android:createWebLinkIntent";
 	public static final String METHOD_GET_DOCUMENT_METADATA = "android:getDocumentMetadata";
 	public static final String EXTRA_PARENT_URI = "parentUri";
+	public static final String EXTRA_TARGET_URI = "targetUri";
 	public static final String EXTRA_URI = "uri";
 	public static final String EXTRA_URI_PERMISSIONS = "uriPermissions";
 	public static final String EXTRA_OPTIONS = "options";
@@ -143,6 +144,85 @@ public final class DocumentsContract {
 
 	public static Uri buildDocumentUri(String authority, String documentId) {
 		return new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT).authority(authority).appendPath(PATH_DOCUMENT).appendPath(documentId).build();
+	}
+
+	public static Uri buildTreeDocumentUri(String authority, String documentId) {
+		// AOSP: documentId may itself contain slashes; the tree id is then
+		// everything up to the last one.
+		final String treeDocumentId;
+		if (documentId.contains("/")) {
+			treeDocumentId = documentId.substring(0, documentId.lastIndexOf('/'));
+			documentId = documentId.substring(documentId.lastIndexOf('/') + 1);
+		} else {
+			treeDocumentId = documentId;
+		}
+		return new Uri.Builder()
+		    .scheme(ContentResolver.SCHEME_CONTENT)
+		    .authority(authority)
+		    .appendPath(PATH_TREE)
+		    .appendPath(treeDocumentId)
+		    .appendPath(PATH_DOCUMENT)
+		    .appendPath(documentId)
+		    .build();
+	}
+
+	/**
+	 * The result of {@link DocumentsProvider#findDocumentPath}: the root the
+	 * path starts at (null for tree-relative paths) and the document ids from
+	 * that root down to the requested document, inclusive.
+	 */
+	public static final class Path implements android.os.Parcelable {
+		private final String mRootId;
+		private final List<String> mPath;
+
+		public Path(String rootId, List<String> path) {
+			mRootId = rootId;
+			mPath = path;
+		}
+
+		public String getRootId() {
+			return mRootId;
+		}
+
+		public List<String> getPath() {
+			return mPath;
+		}
+
+		@Override
+		public int describeContents() {
+			return 0;
+		}
+
+		@Override
+		public void writeToParcel(android.os.Parcel dest, int flags) {
+			// AOSP uses Parcel.writeStringList; ATL's Parcel lacks it, so
+			// encode as count + strings (self-consistent: ATL Bundles transfer
+			// in-process).
+			dest.writeString(mRootId);
+			dest.writeInt(mPath.size());
+			for (int i = 0; i < mPath.size(); i++) {
+				dest.writeString(mPath.get(i));
+			}
+		}
+
+		public static final android.os.Parcelable.Creator<Path> CREATOR =
+				new android.os.Parcelable.Creator<Path>() {
+			@Override
+			public Path createFromParcel(android.os.Parcel in) {
+				final String rootId = in.readString();
+				final int n = in.readInt();
+				List<String> path = new java.util.ArrayList<>(n);
+				for (int i = 0; i < n; i++) {
+					path.add(in.readString());
+				}
+				return new Path(rootId, path);
+			}
+
+			@Override
+			public Path[] newArray(int size) {
+				return new Path[size];
+			}
+		};
 	}
 
 	public final static class Document {

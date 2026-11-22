@@ -13,6 +13,10 @@ public class Settings {
 		private final static String TAG = "Settings$Secure";
 		public static final Uri CONTENT_URI = Uri.parse("content://settings/secure");
 
+		// A 64-bit ID, rendered as 16 lowercase hex digits like AOSP does; stable for
+		// this build so apps that hash/persist it (Long.parseLong(id, 16), etc.) work.
+		private final static String ANDROID_ID = String.format("%016x", 0x3f7a1c9e4b6d0528L);
+
 		public static Uri getUriFor(String name) {
 			return Uri.withAppendedPath(CONTENT_URI, name);
 		}
@@ -20,12 +24,12 @@ public class Settings {
 		public static String getString(ContentResolver content_resolver, String key) {
 			switch (key) {
 				case "android_id":
-					return "_totally_an_androidID"; // TODO: is this a good ID? :P
+					return ANDROID_ID;
 				case "advertising_id":
 					return "";
 				default:
 					Slog.w(TAG, "!!!! getString: unknown key: >" + key + "<");
-					return "NOTICEME";
+					return null;
 			}
 		}
 
@@ -93,6 +97,11 @@ public class Settings {
 		public static final Uri DEFAULT_NOTIFICATION_URI = getUriFor("notification_sound");
 
 		public static final Uri DEFAULT_RINGTONE_URI = getUriFor("ringtone");
+
+		// AOSP: DEFAULT_ALARM_ALERT_URI = RingtoneManager.getDefaultUri(TYPE_ALARM);
+		// ATL resolves these through its own Settings provider, same as the
+		// ringtone/notification URIs above.
+		public static final Uri DEFAULT_ALARM_ALERT_URI = getUriFor("alarm_alert");
 
 		public static Uri getUriFor(String name) {
 			return Uri.withAppendedPath(CONTENT_URI, name);
@@ -169,7 +178,7 @@ public class Settings {
 			switch (key) {
 				default:
 					Slog.w(TAG, "!!!! getString: unknown key: >" + key + "<");
-					return "STRING_FROM_SETTINGS_GLOBAL_WITH_KEY_" + key;
+					return null;
 			}
 		}
 
