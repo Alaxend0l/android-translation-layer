@@ -174,7 +174,6 @@ public class PopupMenu {
 	* @see #dismiss()
 	*/
 	public void show() {
-		System.out.println("PopupMenu.show() called");
 		native_show(popover, mAnchor.widget);
 	}
 
@@ -183,7 +182,6 @@ public class PopupMenu {
 	}
 
 	public void dismiss() {
-		System.out.println("PopupMenu.dismiss() called");
 	}
 
 	/**
