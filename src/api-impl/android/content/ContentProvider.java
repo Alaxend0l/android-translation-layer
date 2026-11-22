@@ -97,6 +97,21 @@ public abstract class ContentProvider {
 		return fd != null ? new AssetFileDescriptor(fd, 0, -1) : null;
 	}
 
+	/**
+	 * AOSP default: providers with no stream types return null here;
+	 * android.provider.DocumentsProvider overrides this and
+	 * openTypedAssetFile.
+	 */
+	public String[] getStreamTypes(Uri uri, String mimeTypeFilter) {
+		return null;
+	}
+
+	public AssetFileDescriptor openTypedAssetFile(Uri uri, String mimeTypeFilter, Bundle opts)
+			throws FileNotFoundException {
+		throw new FileNotFoundException("No supported subtypes: required MIME type "
+				+ mimeTypeFilter + " for " + uri);
+	}
+
 	public void attachInfo(Context context, ProviderInfo provider) {}
 
 	public String getCallingPackage() {

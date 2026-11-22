@@ -483,6 +483,7 @@ srcs = [
 	'android/provider/Contacts.java',
 	'android/provider/ContactsContract.java',
 	'android/provider/DocumentsContract.java',
+	'android/provider/DocumentsProvider.java',
 	'android/provider/MediaStore.java',
 	'android/provider/Settings.java',
 	'android/provider/Telephony.java',

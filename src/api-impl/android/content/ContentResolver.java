@@ -23,6 +23,9 @@ import java.util.List;
 public class ContentResolver {
 	public static final String SCHEME_CONTENT = "content";
 
+	// AOSP name; used by ContentProvider.openTypedAssetFile thumbnail hints.
+	public static final String EXTRA_SIZE = "extraSize";
+
 	public static final String SYNC_EXTRAS_IGNORE_SETTINGS = "ignore_settings";
 
 	public static final int SYNC_OBSERVER_TYPE_STATUS = 1 << 0;
