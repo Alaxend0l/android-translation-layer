@@ -527,7 +527,6 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 
 	@Export
 	public void onBackPressed() {
-		System.out.println("onBackPressed() called");
 		finish();
 	}
 
