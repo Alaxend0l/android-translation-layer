@@ -111,4 +111,26 @@ public class HorizontalScrollView extends FrameLayout {
 	}
 
 	public void setFillViewport(boolean fillViewport) {}
+
+	/* AOSP HorizontalScrollView scrollbar helpers, see ScrollView. */
+	@Override
+	protected int computeHorizontalScrollRange() {
+		final int count = getChildCount();
+		final int contentWidth = getWidth() - getPaddingLeft() - getPaddingRight();
+		if (count == 0)
+			return contentWidth;
+		View view = getChildAt(0);
+		final int childWidth = (view != null) ? view.getMeasuredWidth() : 0;
+		return contentWidth + childWidth;
+	}
+
+	@Override
+	protected int computeHorizontalScrollOffset() {
+		return getScrollX();
+	}
+
+	@Override
+	protected int computeHorizontalScrollExtent() {
+		return getWidth() - getPaddingLeft() - getPaddingRight();
+	}
 }

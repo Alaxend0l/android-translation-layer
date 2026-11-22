@@ -1691,7 +1691,14 @@ public class View implements Drawable.Callback {
 	}
 
 	protected int computeVerticalScrollOffset() {
-		return -1;
+		/* AOSP base View returns mScrollY (the fork returned -1; nothing
+		 * in the fork consumed the sentinel and Scrollbar code paths
+		 * call this too). */
+		return scrollY;
+	}
+
+	protected int computeHorizontalScrollOffset() {
+		return scrollX;
 	}
 
 	protected void onScrollChanged(int l, int t, int oldl, int oldt) {
@@ -2574,7 +2581,20 @@ public class View implements Drawable.Callback {
 
 	public void setForegroundGravity(int gravity) { mForegroundGravity = gravity; }
 
-	public boolean canScrollVertically(int value) { return false; }
+	public boolean canScrollVertically(int direction) {
+		/* AOSP View.canScrollVertically maths over the scrollbar
+		 * helpers; widgets that scroll really (AbsListView, GridView,
+		 * app-side RecyclerView/ScrollView) override the compute*
+		 * methods and get the answer through them. */
+		final int offset = computeVerticalScrollOffset();
+		final int range = computeVerticalScrollRange();
+		final int extent = computeVerticalScrollExtent();
+		if (range <= 0)
+			return false;
+		if (direction < 0)
+			return offset > 0;
+		return range > extent + offset;
+	}
 
 	public boolean isInTouchMode() { return false; }
 
@@ -2681,7 +2701,17 @@ public class View implements Drawable.Callback {
 		return onTouchEvent(event);
 	}
 
-	public boolean canScrollHorizontally(int direction) { return false; }
+	public boolean canScrollHorizontally(int direction) {
+		/* Same AOSP maths horizontally. */
+		final int offset = computeHorizontalScrollOffset();
+		final int range = computeHorizontalScrollRange();
+		final int extent = computeHorizontalScrollExtent();
+		if (range <= 0)
+			return false;
+		if (direction < 0)
+			return offset > 0;
+		return range > extent + offset;
+	}
 
 	protected native boolean native_getGlobalVisibleRect(long widget, Rect visibleRect);
 

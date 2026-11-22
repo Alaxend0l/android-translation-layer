@@ -146,6 +146,31 @@ public class ScrollView extends FrameLayout {
 
 	public void setFillViewport(boolean fillViewport) {}
 
+	/* AOSP ScrollView's scrollbar-helper overrides (the shape
+	 * View.canScrollVertically reads). ATL's ScrollView really scrolls its
+	 * child through scrollTo/computeScroll (see the port note at the top),
+	 * so these values are real, not sentinels. */
+	@Override
+	protected int computeVerticalScrollRange() {
+		final int count = getChildCount();
+		final int contentHeight = getHeight() - getPaddingTop() - getPaddingBottom();
+		if (count == 0)
+			return contentHeight;
+		View view = getChildAt(0);
+		final int childHeight = (view != null) ? view.getMeasuredHeight() : 0;
+		return contentHeight + childHeight;
+	}
+
+	@Override
+	protected int computeVerticalScrollOffset() {
+		return getScrollY();
+	}
+
+	@Override
+	protected int computeVerticalScrollExtent() {
+		return getHeight() - getPaddingTop() - getPaddingBottom();
+	}
+
 	public boolean fullScroll(int direction) {
 		return true;
 	}
