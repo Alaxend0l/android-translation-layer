@@ -1,5 +1,6 @@
 package android.location;
 
+import android.app.PendingIntent;
 import android.atl.annotation.Export;
 import android.os.Bundle;
 import android.os.Handler;
@@ -54,6 +55,18 @@ public class LocationManager {
 	}
 
 	public void removeUpdates(LocationListener listener) {
+		listeners.remove(listener);
+	}
+
+	public void removeUpdates(PendingIntent intent) {
+		// AOSP throws IllegalArgumentException on a null PendingIntent and
+		// otherwise removes any PendingIntent-based location registrations.
+		// ATL never registers those: the requestLocationUpdates(PendingIntent)
+		// overloads do not exist here, and ATL's location pipeline only calls
+		// LocationListeners (see locationUpdated above). Nothing to remove.
+		if (intent == null) {
+			throw new IllegalArgumentException("intent is null");
+		}
 	}
 
 	public List<String> getAllProviders() {
