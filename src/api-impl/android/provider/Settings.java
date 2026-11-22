@@ -98,6 +98,11 @@ public class Settings {
 
 		public static final Uri DEFAULT_RINGTONE_URI = getUriFor("ringtone");
 
+		// AOSP: DEFAULT_ALARM_ALERT_URI = RingtoneManager.getDefaultUri(TYPE_ALARM);
+		// ATL resolves these through its own Settings provider, same as the
+		// ringtone/notification URIs above.
+		public static final Uri DEFAULT_ALARM_ALERT_URI = getUriFor("alarm_alert");
+
 		public static Uri getUriFor(String name) {
 			return Uri.withAppendedPath(CONTENT_URI, name);
 		}
