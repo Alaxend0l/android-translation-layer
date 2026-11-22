@@ -366,6 +366,7 @@ srcs = [
 	'android/media/MediaCodecList.java',
 	'android/media/MediaCrypto.java',
 	'android/media/MediaDescription.java',
+	'android/media/MediaFile.java',
 	'android/media/MediaFormat.java',
 	'android/media/MediaMetadata.java',
 	'android/media/MediaMetadataRetriever.java',
