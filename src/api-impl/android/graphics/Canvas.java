@@ -185,8 +185,11 @@ public class Canvas {
 		}*/
 	}
 
-	public void drawText(char text[], int start, int end, float x, float y, Paint paint) {
-		drawText(new String(text), start, end, x, y, paint);
+	/* AOSP signature: index + COUNT of characters, not an end index. The
+	 * old (start, end) body forwarded to the String(start,end) overload,
+	 * so callers with index > 0 drew the wrong span or threw. */
+	public void drawText(char text[], int index, int count, float x, float y, Paint paint) {
+		drawText(new String(text, index, count), x, y, paint);
 	}
 
 	public void drawTextOnPath(String text, Path path, float x_offset, float y_offset, Paint paint) {
