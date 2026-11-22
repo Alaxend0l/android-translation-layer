@@ -1696,11 +1696,21 @@ public class VectorDrawable extends Drawable {
 			}
 			vPath.toPath(mPath);
 			final Path path = mPath;
+			/* android:fillType (queue item 49): the fork read the attribute
+			 * into mFillRule nowhere and applied it nowhere, so evenOdd
+			 * icons filled with the winding rule. AOSP sets the
+			 * Path's fill type when the path is built; here the fill rule
+			 * also has to be copied onto mRenderPath, which is what
+			 * Canvas.drawPath/clipPath actually read (their native side
+			 * takes the gsk fill_rule from the path's FillType). */
+			if (!vPath.isClipPath())
+				path.setFillType(Path.FillType.getMapFillType(((VFullPath)vPath).mFillRule));
 
 			mRenderPath.reset();
 
 			if (vPath.isClipPath()) {
 				mRenderPath.addPath(path, mFinalPathMatrix);
+				mRenderPath.setFillType(path.getFillType());
 				canvas.clipPath(mRenderPath);
 			} else {
 				VFullPath fullPath = (VFullPath)vPath;
@@ -1726,6 +1736,7 @@ public class VectorDrawable extends Drawable {
 					path.rLineTo(0, 0); // fix bug in measure
 				}
 				mRenderPath.addPath(path, mFinalPathMatrix);
+				mRenderPath.setFillType(path.getFillType());
 
 				if (fullPath.mFillColor != Color.TRANSPARENT) {
 					if (mFillPaint == null) {
@@ -2221,6 +2232,7 @@ public class VectorDrawable extends Drawable {
 				mFillColor = fillColor.getDefaultColor();
 			mFillAlpha = a.getFloat(R.styleable.VectorDrawablePath_fillAlpha,
 			                        mFillAlpha);
+			mFillRule = a.getInt(R.styleable.VectorDrawablePath_fillType, mFillRule);
 			mStrokeLineCap = getStrokeLineCap(a.getInt(
 							      R.styleable.VectorDrawablePath_strokeLineCap, -1),
 			                                  mStrokeLineCap);

@@ -15,6 +15,18 @@ public class Path {
 		INVERSE_WINDING(0, true),  // GSK_FILL_RULE_WINDING
 		INVERSE_EVEN_ODD(1, true); // GSK_FILL_RULE_EVEN_ODD
 
+		/* AOSP Path.FillType.getMapFillType: the int the resource system
+		 * carries (android:fillType enum: nonZero = 0, evenOdd = 1, plus
+		 * the inverse variants) -> FillType. */
+		public static FillType getMapFillType(int nativeType) {
+			switch (nativeType) {
+			case 1: return EVEN_ODD;
+			case 2: return INVERSE_WINDING;
+			case 3: return INVERSE_EVEN_ODD;
+			default: return WINDING;
+			}
+		}
+
 		public int fill_rule;
 		boolean inverse;
 
