@@ -173,8 +173,15 @@ public abstract class Context {
 		return ATLLoadedApp.getPrimaryApplication().getApplication();
 	}
 
+	private ContentResolver mContentResolver;
+
 	public ContentResolver getContentResolver() {
-		return new ContentResolver();
+		/* AOSP ContextImpl caches one resolver per context; apps may
+		 * register observers on it and expect to get the same object
+		 * back from the same context. */
+		if (mContentResolver == null)
+			mContentResolver = new ContentResolver();
+		return mContentResolver;
 	}
 
 	public abstract Object getSystemService(String name);
@@ -412,6 +419,11 @@ public abstract class Context {
 		 * dir - and MODE_APPEND opens in append mode. */
 		File file = makeFilename(getFilesDir(), name);
 		return new FileOutputStream(file, (mode & MODE_APPEND) != 0);
+	}
+
+	public boolean deleteFile(String name) {
+		/* AOSP ContextImpl: delete from the same private files dir. */
+		return getFileStreamPath(name).delete();
 	}
 
 	public int checkCallingOrSelfPermission(String permission) {
