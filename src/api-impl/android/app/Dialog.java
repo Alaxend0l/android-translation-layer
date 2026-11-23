@@ -78,7 +78,16 @@ public class Dialog implements Window.Callback, DialogInterface {
 
 	public void setOwnerActivity(Activity activity) {}
 
-	public void setCancelable(boolean cancelable) {}
+	private boolean mCancelable = true; // AOSP default (oreo-release Dialog)
+
+	public void setCancelable(boolean cancelable) {
+		/* AOSP stores it and re-arms the window (updateWindowForCancelable:
+		 * close-on-touch-outside follows cancelability, and the back key only
+		 * cancels a cancelable dialog). This fork's dialog windows are native;
+		 * the native side has no cancelable hook (only setCanceledOnTouchOutside),
+		 * so the flag is kept here as the state the getters/subclasses see. */
+		mCancelable = cancelable;
+	}
 
 	private OnCancelListener onCancelListener = null;
 
@@ -272,7 +281,17 @@ public class Dialog implements Window.Callback, DialogInterface {
 		return false;
 	}
 
-	public void setOnKeyListener(OnKeyListener onKeyListener) {}
+	private OnKeyListener mOnKeyListener = null;
+
+	public void setOnKeyListener(OnKeyListener onKeyListener) {
+		/* AOSP stores it (oreo-release Dialog:1346) and dispatchKeyEvent runs
+		 * it first (Dialog:776: mOnKeyListener.onKey(this, keyCode, event)).
+		 * This fork's native dialog window has no key routing yet, so nothing
+		 * calls it - storing the listener completes the API surface; the
+		 * DialogInterface.OnKeyListener.onKey declaration was also missing
+		 * (empty marker) and is added in DialogInterface.java. */
+		mOnKeyListener = onKeyListener;
+	}
 
 	public View getCurrentFocus() {
 		return null;

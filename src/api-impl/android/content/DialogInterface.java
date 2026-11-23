@@ -1,6 +1,7 @@
 package android.content;
 
 import android.atl.annotation.Export;
+import android.view.KeyEvent;
 
 public interface DialogInterface {
 	/** The identifier for the positive button. */
@@ -34,5 +35,9 @@ public interface DialogInterface {
 	public interface OnMultiChoiceClickListener {
 	}
 	public interface OnKeyListener {
+		/* The method apps implement (AOSP DialogInterface.OnKeyListener);
+		 * it was missing, so a listener had nothing to implement and the
+		 * dialog nothing to call. */
+		boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event);
 	}
 }
