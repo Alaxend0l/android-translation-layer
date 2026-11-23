@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -492,9 +493,24 @@ public class PopupMenu {
 			return this;
 		}
 
+		/* Action view (queue items 338, 339, 342): AOSP's MenuItemImpl stores
+		 * the view (giving it the item id when it has none) and getActionView
+		 * answers with it; the *consumer* is the action bar presenter, which a
+		 * popup has no counterpart to — which is why AOSP's own popup answers
+		 * expandActionView()/isActionViewExpanded() are false (its
+		 * MenuBuilder.expandItemActionView only succeeds via presenters that
+		 * can expand). AOSP's getActionView also lazily creates a view from an
+		 * ActionProvider; this MenuItem has none (no setActionProvider). The
+		 * storage round-trip is what the setter/getter pair promises, so it
+		 * is kept even though no GMenu row can host the view. */
+		private View atl_action_view = null;
+
 		@Override
 		public MenuItem setActionView(View actionView) {
-			// GMenu popover rows are label-only; nothing can host the view.
+			atl_action_view = actionView;
+			if (actionView != null && actionView.getId() == View.NO_ID && id > 0) {
+				actionView.setId(id);
+			}
 			return this;
 		}
 
@@ -541,13 +557,15 @@ public class PopupMenu {
 
 		@Override
 		public MenuItem setActionView(int resId) {
-			// Label-only popover rows (see setActionView(View)).
-			return this;
+			/* AOSP inflates the layout (into a throwaway LinearLayout shell)
+			 * and routes it through setActionView(View) (queue item 339). */
+			return setActionView(LayoutInflater.from(mContext)
+			    .inflate(resId, new LinearLayout(mContext), false));
 		}
 
 		@Override
 		public View getActionView() {
-			return null;
+			return atl_action_view;
 		}
 
 		@Override
