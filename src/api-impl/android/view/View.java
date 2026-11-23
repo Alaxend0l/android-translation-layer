@@ -2435,7 +2435,13 @@ public class View implements Drawable.Callback {
 		return callOnClick();
 	}
 
-	public void playSoundEffect(int soundConstant) {}
+	public void playSoundEffect(int soundConstant) {
+		/* AOSP routes this through the ViewRootImpl's window callbacks to
+		 * the audio stack; ATL has neither that callback object nor a
+		 * sound-effect sink (AudioManager.playSoundEffect in the fork is
+		 * an empty stub), so there is nothing to play. Explicit no-op:
+		 * queue item 170 finding. */
+	}
 
 	@Export
 	public void computeScroll() {}
@@ -3149,6 +3155,11 @@ public class View implements Drawable.Callback {
 		return handler;
 	}
 
+	/* AOSP answers mAttachInfo.mHardwareAccelerated, i.e. "HWUI is
+	 * drawing this view" (queue item 175). ATL draws through GTK4 render
+	 * nodes, not HWUI, and the APIs apps gate on this flag for - layer
+	 * types, hardware overlays, some render-node paths - do not exist in
+	 * the fork, so false is the honest answer, not a placeholder. */
 	public boolean isHardwareAccelerated() {
 		return false;
 	}
@@ -3195,6 +3206,12 @@ public class View implements Drawable.Callback {
 
 	public void setCameraDistance(float distance) {}
 
+	/* Scroll-into-view request (queue items 167, 168): AOSP walks the
+	 * parent chain calling requestChildRectangleOnScreen; ATL's
+	 * ViewParent/ViewGroup has no such hook (no scroll-into-view
+	 * machinery at all), so nothing can scroll and "false = no parent
+	 * scrolled" is the faithful answer. Explicit no-op: recorded with
+	 * the scroll machinery gap. */
 	public boolean requestRectangleOnScreen(Rect rectangle, boolean immediate) { return false; }
 
 	public boolean requestRectangleOnScreen(Rect rectangle) { return false; }
