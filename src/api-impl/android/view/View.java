@@ -1851,7 +1851,22 @@ public class View implements Drawable.Callback {
 		drawableStateChanged();
 	}
 
-	public void setDescendantFocusability(int value) {}
+	/* Descendant focus policy (queue item 137): AOSP stores the flag and
+	 * the focus search consults it. ATL's focus search is GTK's, so the
+	 * flag has no consumer yet, but apps set/read it (e.g. to stop
+	 * children stealing focus before a list is ready) and the setter
+	 * silently dropping it was the finding. The FOCUS_*_DESCENDANTS
+	 * constants were absent from the fork (apps referencing them hit
+	 * NoSuchFieldError); added with AOSP values. */
+	private int descendant_focusability = FOCUS_BEFORE_DESCENDANTS;
+
+	public void setDescendantFocusability(int value) {
+		descendant_focusability = value;
+	}
+
+	public int getDescendantFocusability() {
+		return descendant_focusability;
+	}
 
 	public void setAccessibilityDelegate(AccessibilityDelegate delegate) {
 		accessibilityDelegate = delegate;
@@ -2107,7 +2122,15 @@ public class View implements Drawable.Callback {
 		native_setBackgroundDrawable(widget, backgroundDrawable != null ? backgroundDrawable.paintable : 0);
 	}
 
-	public int getOverScrollMode() { return 0; }
+	/* Over-scroll state (queue item 147): AOSP default is
+	 * OVER_SCROLL_IF_CONTENT_SCROLLS, not ALWAYS; the setter stored
+	 * nothing and the getter answered 0 (OVER_SCROLL_ALWAYS). State is
+	 * stored now; the glow/stretch effect itself does not exist in ATL. */
+	private int over_scroll_mode = OVER_SCROLL_IF_CONTENT_SCROLLS;
+
+	public int getOverScrollMode() {
+		return over_scroll_mode;
+	}
 
 	public void setFitsSystemWindows(boolean fitsSystemWindows) {
 		if (this.fitsSystemWindows != fitsSystemWindows) {
@@ -2142,7 +2165,9 @@ public class View implements Drawable.Callback {
 		}
 	};
 
-	public void setOverScrollMode(int mode) {}
+	public void setOverScrollMode(int mode) {
+		over_scroll_mode = mode;
+	}
 
 	@Export
 	public int getId() { return id; }
@@ -2767,7 +2792,14 @@ public class View implements Drawable.Callback {
 
 	protected void onSizeChanged(int w, int h, int oldw, int oldh) {}
 
-	public void setBackgroundTintList(ColorStateList tint) {}
+	/* Background tint state (queue item 139): stored and read back; the
+	 * gsk draw path does not apply the tint yet (same rendering
+	 * follow-up as the other paint-level View properties). */
+	private ColorStateList background_tint_list = null;
+
+	public void setBackgroundTintList(ColorStateList tint) {
+		background_tint_list = tint;
+	}
 
 	protected int computeHorizontalScrollRange() {
 		return getWidth();
@@ -2971,7 +3003,9 @@ public class View implements Drawable.Callback {
 		this.layoutDirection = layoutDirection;
 	}
 
-	public ColorStateList getBackgroundTintList() { return null; }
+	public ColorStateList getBackgroundTintList() {
+		return background_tint_list;
+	}
 
 	public PorterDuff.Mode getBackgroundTintMode() { return null; }
 
@@ -2983,7 +3017,17 @@ public class View implements Drawable.Callback {
 		return false; // FIXME
 	}
 
-	public void setTextDirection(int textDirection) {}
+	/* Text direction state (queue item 140): AOSP stores it and derives
+	 * the layout direction from it (resolveLayoutDirection). ATL's
+	 * getters already answer LTR unconditionally, which equals what
+	 * TEXT_DIRECTION_INHERIT/LOCALE resolve to in ATL's fixed-LTR
+	 * world; the setter now keeps the flag so get/set round-trip.
+	 * Acting on RTL text remains a separate gap. */
+	private int atl_text_direction = TEXT_DIRECTION_INHERIT;
+
+	public void setTextDirection(int textDirection) {
+		atl_text_direction = textDirection;
+	}
 
 	public Drawable getForeground() { return null; }
 
@@ -3077,7 +3121,9 @@ public class View implements Drawable.Callback {
 		atl_clip_to_outline = clipToOutline;
 	}
 
-	public boolean getClipToOutline() { return false; }
+	public boolean getClipToOutline() {
+		return atl_clip_to_outline;
+	}
 
 	public void setLeft(int left) {
 		layout(left, top, right, bottom);
@@ -3319,7 +3365,19 @@ public class View implements Drawable.Callback {
 		}
 	}
 	public void setForceDarkAllowed(boolean forceDark) {}
-	public void setWindowInsetsAnimationCallback(WindowInsetsAnimation.Callback callback) {}
+	/* Insets animation callback state (queue item 144): stored and read
+	 * back; ATL has no window insets animations (no system bars to
+	 * animate), so nothing calls the callback — the API state round-
+	 * trips and apps' null checks behave like AOSP's. */
+	private android.view.WindowInsetsAnimation.Callback insets_animation_callback = null;
+
+	public void setWindowInsetsAnimationCallback(android.view.WindowInsetsAnimation.Callback callback) {
+		insets_animation_callback = callback;
+	}
+
+	public android.view.WindowInsetsAnimation.Callback getWindowInsetsAnimationCallback() {
+		return insets_animation_callback;
+	}
 	public void setViewTranslationCallback(ViewTranslationCallback callback) {}
 	public void clearViewTranslationCallback() {}
 	public void transformMatrixToGlobal(Matrix matrix) {}
@@ -3364,7 +3422,9 @@ public class View implements Drawable.Callback {
 
 	public OnFocusChangeListener getOnFocusChangeListener() { return null; }
 
-	public int getTextDirection() { return 0; /* TEXT_DIRECTION_INHERIT */ }
+	public int getTextDirection() {
+		return atl_text_direction;
+	}
 
 	public TouchDelegate getTouchDelegate() { return null; }
 
