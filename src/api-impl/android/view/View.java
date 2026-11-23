@@ -3479,7 +3479,20 @@ public class View implements Drawable.Callback {
 
 	public void setScrollbarFadingEnabled(boolean fadeEnabled) {}
 
-	public void setScrollBarStyle(int style) {}
+	/* Scrollbar style (queue item 283): AOSP keeps it in mViewFlags
+	 * (SCROLLBARS_STYLE_MASK — the fork already declares these
+	 * constants) and its scrollbar drawing, opacity computation and
+	 * padding resolution read it back. The setter dropped the value.
+	 * Stored with AOSP's default (SCROLLBARS_INSIDE_INSET); the
+	 * **scrollbar drawing gap** (same as the fading-edge one above)
+	 * stays recorded — nothing here paints a scrollbar to apply the
+	 * style to. AOSP's own getScrollBarStyle is @hide, so no public
+	 * caller reads it. */
+	private int atl_scrollbar_style = SCROLLBARS_INSIDE_INSET;
+
+	public void setScrollBarStyle(int style) {
+		atl_scrollbar_style = style & SCROLLBARS_STYLE_MASK;
+	}
 
 	public void setVerticalScrollbarPosition(int position) {}
 
@@ -3612,7 +3625,25 @@ public class View implements Drawable.Callback {
 		return atl_default_focus_highlight;
 	}
 
-	public void setHorizontalFadingEdgeEnabled(boolean horizontalFadingEdgeEnabled) {}
+	/* Fading edges (queue item 275): AOSP keeps these as mViewFlags bits
+	 * (FADING_EDGE_HORIZONTAL/VERTICAL, the constants the fork already
+	 * declares) toggled by the pair of setters; the fork dropped the
+	 * value and never declared the getters. Stored now. **gap: edge
+	 * effect / scrollbar drawing in ATL** — AOSP fades a scrolled view's
+	 * edges in its own draw path; ATL renders through GTK and paints no
+	 * fading edges or scrollbars (same gap as setVerticalScrollbarPosition),
+	 * so the flag is state nothing paints. AOSP's getter is the is…Enabled
+	 * pair. */
+	private int atl_fading_edge_flags = FADING_EDGE_NONE;
+
+	public void setHorizontalFadingEdgeEnabled(boolean horizontalFadingEdgeEnabled) {
+		if (isHorizontalFadingEdgeEnabled() != horizontalFadingEdgeEnabled)
+			atl_fading_edge_flags ^= FADING_EDGE_HORIZONTAL;
+	}
+
+	public boolean isHorizontalFadingEdgeEnabled() {
+		return (atl_fading_edge_flags & FADING_EDGE_HORIZONTAL) != 0;
+	}
 
 	public Handler getHandler() {
 		if (handler == null)
@@ -4204,9 +4235,21 @@ public class View implements Drawable.Callback {
 		}
 	}
 
+	/* queue item 274: nothing was ever built — see the drawing-cache gap
+	 * recorded at setDrawingCacheEnabled — so there is nothing to
+	 * destroy. */
 	public void destroyDrawingCache() {}
 
-	public void setVerticalFadingEdgeEnabled(boolean verticalFadingEdgeEnabled) {}
+	public void setVerticalFadingEdgeEnabled(boolean verticalFadingEdgeEnabled) {
+		/* queue item 275: same pair/flag family as the horizontal one
+		 * above. */
+		if (isVerticalFadingEdgeEnabled() != verticalFadingEdgeEnabled)
+			atl_fading_edge_flags ^= FADING_EDGE_VERTICAL;
+	}
+
+	public boolean isVerticalFadingEdgeEnabled() {
+		return (atl_fading_edge_flags & FADING_EDGE_VERTICAL) != 0;
+	}
 
 	public int getAccessibilityLiveRegion() {
 		return atl_accessibility_live_region;
