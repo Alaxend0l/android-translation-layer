@@ -7,8 +7,38 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef android_media_AudioManager_STREAM_VOICE_CALL
+#define android_media_AudioManager_STREAM_VOICE_CALL 0L
+#undef android_media_AudioManager_STREAM_SYSTEM
+#define android_media_AudioManager_STREAM_SYSTEM 1L
+#undef android_media_AudioManager_STREAM_RING
+#define android_media_AudioManager_STREAM_RING 2L
 #undef android_media_AudioManager_STREAM_MUSIC
 #define android_media_AudioManager_STREAM_MUSIC 3L
+#undef android_media_AudioManager_STREAM_ALARM
+#define android_media_AudioManager_STREAM_ALARM 4L
+#undef android_media_AudioManager_STREAM_NOTIFICATION
+#define android_media_AudioManager_STREAM_NOTIFICATION 5L
+#undef android_media_AudioManager_STREAM_BLUETOOTH_SCO
+#define android_media_AudioManager_STREAM_BLUETOOTH_SCO 6L
+#undef android_media_AudioManager_STREAM_SYSTEM_ENFORCED
+#define android_media_AudioManager_STREAM_SYSTEM_ENFORCED 7L
+#undef android_media_AudioManager_STREAM_DTMF
+#define android_media_AudioManager_STREAM_DTMF 8L
+#undef android_media_AudioManager_STREAM_TTS
+#define android_media_AudioManager_STREAM_TTS 9L
+#undef android_media_AudioManager_RINGER_MODE_SILENT
+#define android_media_AudioManager_RINGER_MODE_SILENT 0L
+#undef android_media_AudioManager_RINGER_MODE_VIBRATE
+#define android_media_AudioManager_RINGER_MODE_VIBRATE 1L
+#undef android_media_AudioManager_RINGER_MODE_NORMAL
+#define android_media_AudioManager_RINGER_MODE_NORMAL 2L
+#undef android_media_AudioManager_ADJUST_LOWER
+#define android_media_AudioManager_ADJUST_LOWER -1L
+#undef android_media_AudioManager_ADJUST_SAME
+#define android_media_AudioManager_ADJUST_SAME 0L
+#undef android_media_AudioManager_ADJUST_RAISE
+#define android_media_AudioManager_ADJUST_RAISE 1L
 #undef android_media_AudioManager_AUDIOFOCUS_NONE
 #define android_media_AudioManager_AUDIOFOCUS_NONE 0L
 #undef android_media_AudioManager_AUDIOFOCUS_GAIN
@@ -43,6 +73,8 @@ extern "C" {
 #define android_media_AudioManager_GET_DEVICES_OUTPUTS 2L
 #undef android_media_AudioManager_GET_DEVICES_ALL
 #define android_media_AudioManager_GET_DEVICES_ALL 3L
+#undef android_media_AudioManager_STREAM_COUNT
+#define android_media_AudioManager_STREAM_COUNT 10L
 /*
  * Class:     android_media_AudioManager
  * Method:    nativeSetStreamVolume

@@ -189,6 +189,12 @@ extern "C" {
 #define android_view_MotionEvent_RAW_X_OFFSET 2L
 #undef android_view_MotionEvent_RAW_Y_OFFSET
 #define android_view_MotionEvent_RAW_Y_OFFSET 3L
+#undef android_view_MotionEvent_ATL_VIRTUAL_TOUCHSCREEN_DEVICE_ID
+#define android_view_MotionEvent_ATL_VIRTUAL_TOUCHSCREEN_DEVICE_ID 0L
+#undef android_view_MotionEvent_ATL_DOWN_TIME_UNSET
+#define android_view_MotionEvent_ATL_DOWN_TIME_UNSET -1LL
+#undef android_view_MotionEvent_ATL_BUTTON_STATE_UNSPECIFIED
+#define android_view_MotionEvent_ATL_BUTTON_STATE_UNSPECIFIED -1L
 /*
  * Class:     android_view_MotionEvent
  * Method:    nativeInitialize

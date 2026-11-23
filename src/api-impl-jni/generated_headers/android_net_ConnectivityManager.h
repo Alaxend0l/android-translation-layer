@@ -7,6 +7,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_INVALID
+#define android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_INVALID 0L
+#undef android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_DISABLED
+#define android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_DISABLED 1L
+#undef android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_ENABLED
+#define android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_ENABLED 2L
+#undef android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_WHITELISTED
+#define android_net_ConnectivityManager_RESTRICT_BACKGROUND_STATUS_WHITELISTED 3L
 /*
  * Class:     android_net_ConnectivityManager
  * Method:    registerNetworkCallback
