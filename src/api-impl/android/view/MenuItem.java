@@ -65,6 +65,8 @@ public interface MenuItem {
 
 	public MenuItem setAlphabeticShortcut(char alphaChar);
 
+	public char getAlphabeticShortcut();
+
 	public MenuItem setShortcut(char numeric, char alpha);
 
 	public int getOrder();
@@ -76,6 +78,8 @@ public interface MenuItem {
 	public CharSequence getTitle();
 
 	public MenuItem setNumericShortcut(char numericChar);
+
+	public char getNumericShortcut();
 
 	public boolean expandActionView();
 

@@ -590,13 +590,35 @@ public class PopupMenu {
 			return this;
 		}
 
+		/* Keyboard shortcuts (queue items 352, 353, 355): AOSP's
+		 * MenuItemImpl stores the chars (alphabetic lower-cased by
+		 * setAlphabeticShortcut; setShortcut stores both directly) for its
+		 * menu key-shortcut handling; GMenu popups never process
+		 * shortcuts, but MenuItem's getter pair (missing from the fork's
+		 * interface until now) round-trips what was set. */
+		private char atl_shortcut_alphabetic_char = '\0';
+
+		private char atl_shortcut_numeric_char = '\0';
+
 		@Override
 		public MenuItem setAlphabeticShortcut(char alphaChar) {
+			if (atl_shortcut_alphabetic_char == alphaChar)
+				return this;
+			atl_shortcut_alphabetic_char = Character.toLowerCase(alphaChar);
 			return this;
 		}
 
 		@Override
-		public MenuItem setShortcut(char numeric, char alpha) { return this; }
+		public char getAlphabeticShortcut() {
+			return atl_shortcut_alphabetic_char;
+		}
+
+		@Override
+		public MenuItem setShortcut(char numeric, char alpha) {
+			atl_shortcut_numeric_char = numeric;
+			atl_shortcut_alphabetic_char = Character.toLowerCase(alpha);
+			return this;
+		}
 
 		@Override
 		public int getOrder() {
@@ -620,7 +642,15 @@ public class PopupMenu {
 
 		@Override
 		public MenuItem setNumericShortcut(char numericChar) {
+			if (atl_shortcut_numeric_char == numericChar)
+				return this;
+			atl_shortcut_numeric_char = numericChar;
 			return this;
+		}
+
+		@Override
+		public char getNumericShortcut() {
+			return atl_shortcut_numeric_char;
 		}
 
 		@Override
