@@ -623,6 +623,22 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 	}
 
 	@Override
+	public View findFocus() {
+		/* AOSP's ViewGroup walks the subtree; the fork tracks no
+		 * mFocused child, so ask GTK per child (isFocused is the view
+		 * itself, see View.findFocus). Children are walked in order,
+		 * matching AOSP's "first focused child". */
+		if (isFocused())
+			return this;
+		for (View child : children) {
+			View focused = child.findFocus();
+			if (focused != null)
+				return focused;
+		}
+		return null;
+	}
+
+	@Override
 	public View findViewWithTag(Object tag) {
 		if (Objects.equals(tag, getTag()))
 			return this;

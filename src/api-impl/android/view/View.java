@@ -2811,7 +2811,16 @@ public class View implements Drawable.Callback {
 
 	public float getAlpha() { return alpha; }
 
-	public View findFocus() { return this; }
+	public View findFocus() {
+		/* AOSP: the view in this subtree that holds focus (isFocused()
+		 * is this view itself; hasFocus() covers descendants). The fork
+		 * answered `this` unconditionally, so Activity.getCurrentFocus
+		 * and androidx focus helpers could not trust it (queue item
+		 * 238). Focus is GTK's (queue item 88's finding) but the fork
+		 * answers it per view (nativeIsFocused/nativeHasFocus, queue
+		 * item 114's work). ViewGroup overrides this to recurse. */
+		return isFocused() ? this : null;
+	}
 
 	public int getMinimumHeight() { return minHeight; }
 	public int getMinimumWidth() { return minWidth; }

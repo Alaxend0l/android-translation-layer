@@ -829,7 +829,13 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public View getCurrentFocus() {
-		return null;
+		/* AOSP returns the view in this activity's window that holds
+		 * focus (queue item 238). Focus is GTK's (queue item 88's
+		 * finding) but the fork answers focus per view now
+		 * (isFocused/findFocus — queue item 114's work), so walk the
+		 * content tree. */
+		View root = root_view != null ? root_view : getWindow().getDecorView();
+		return root == null ? null : root.findFocus();
 	}
 
 	public void setProgressBarIndeterminateVisibility(boolean indeterminate) {}
