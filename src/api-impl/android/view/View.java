@@ -2435,6 +2435,18 @@ public class View implements Drawable.Callback {
 		return factory.inflate(resource, root);
 	}
 
+	/* Hierarchy state save/restore (queue items 179, 184): empty, and that
+	 * is the state of the whole feature rather than a stub to fill: ATL has
+	 * no saved-state pipeline at all — nothing asks an Activity to save its
+	 * state (Activity.onSaveInstanceState(Bundle) has no caller) and nothing
+	 * hands a Bundle of view state back, so there is nothing for these to
+	 * feed or consume. AOSP's version walks the hierarchy keyed by view id
+	 * (View.onSaveInstanceState + ViewGroup.dispatchSaveInstanceState), and
+	 * the fork has neither half — the widget-side SavedState classes that
+	 * would use it are commented out too (see
+	 * android/widget/ExpandableListView.java). **Gap: view saved-state
+	 * pipeline** (needed before these can mean anything); recorded here
+	 * instead of half-implementing a dispatch no caller can exercise. */
 	public void saveHierarchyState(SparseArray<Parcelable> array) {}
 
 	public void setDuplicateParentStateEnabled(boolean enabled) {
@@ -2488,7 +2500,17 @@ public class View implements Drawable.Callback {
 	}
 	private static native boolean nativeHasWindowFocus(long widget);
 
-	public void setSaveEnabled(boolean enabled) {}
+	/* Save flag (queue item 179's family): AOSP stores it and the
+	 * hierarchy-state save path skips views that cleared it. Nothing reads it
+	 * until the saved-state pipeline exists (see saveHierarchyState above);
+	 * no public getter is declared because AOSP's View has none (it is a
+	 * private flag) and adding a final method risks clashing with an app's
+	 * own method of that name. */
+	private boolean atl_save_enabled = true;
+
+	public void setSaveEnabled(boolean enabled) {
+		atl_save_enabled = enabled;
+	}
 
 	public boolean willNotDraw() { return false; }
 
@@ -3478,12 +3500,22 @@ public class View implements Drawable.Callback {
 		return result;
 	}
 
+	/* See saveHierarchyState above: no saved-state pipeline in ATL feeds this
+	 * (queue item 184), so there is no state to restore. */
 	public void restoreHierarchyState(SparseArray<Parcelable> container) {}
 
 	public void scrollBy(int x, int y) {
 		scrollTo(scrollX + x, scrollY + y);
 	}
 
+	/* Accessibility pane title (queue item 188): AOSP stores it and
+	 * announces the pane to accessibility services through the view's
+	 * accessibility node. ATL exposes no accessibility node pipeline (the
+	 * whole android.view.accessibility surface is stubs — same finding as
+	 * queue item 141), so there is nothing to store for and nothing to
+	 * announce: faithful to the fork's a11y state, recorded here rather than
+	 * storing a value no code path can read back (AOSP's View has no public
+	 * getter either). */
 	public void setAccessibilityPaneTitle(CharSequence paneTitle) {}
 
 	public void setAccessibilityHeading(boolean heading) {}
