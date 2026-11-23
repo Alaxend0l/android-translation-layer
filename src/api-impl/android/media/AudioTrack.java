@@ -27,6 +27,11 @@ public class AudioTrack {
 	private boolean initialized = false;
 	private int playbackState = PLAYSTATE_STOPPED;
 	private int playbackHeadPosition = 0;
+	/* AOSP's playback head never goes backwards until flush()/stop() reset
+	 * it; the ALSA delay can momentarily exceed the frames written (PipeWire
+	 * sink latency, stream state transitions), which would read as the head
+	 * rewinding. Track the last reported value to stay monotonic. */
+	private int reportedHeadPosition = 0;
 	private float volume = 1.f;
 	/* Data written while the track is paused. Android buffers those writes
 	 * and plays them on play(); ALSA refuses them (writei returns 0), which
@@ -105,7 +110,9 @@ public class AudioTrack {
 		System.out.println("calling AudioTrack.flush()\n");
 		synchronized (this) {
 			/* Android flush() (valid when paused/stopped) discards the
-			 * data written but not yet played. */
+			 * data written but not yet played and resets the head. */
+			playbackHeadPosition = 0;
+			reportedHeadPosition = 0;
 			pendingWhilePaused.reset();
 			native_flush();
 		}
@@ -277,12 +284,17 @@ public class AudioTrack {
 	}
 
 	public int getPlaybackHeadPosition() {
-		/* Android reports frames consumed since play() and never goes
-		 * backwards; some ALSA plugins report a delay larger than the
-		 * frames written (e.g. while paused), which would read as the
-		 * head rewinding and make media3 declare an underrun. Clamp it. */
+		/* Android reports frames consumed since play() and the value never
+		 * goes backwards until flush() resets it. The ALSA->PipeWire delay
+		 * can momentarily exceed the frames written (extra sink latency,
+		 * state transitions across pause), which would read as the head
+		 * rewinding and make players declare discontinuities/underruns;
+		 * clamp to the last reported value instead. */
 		int head = playbackHeadPosition - native_getPlaybackHeadPosition();
-		return head < 0 ? 0 : head;
+		if (head < reportedHeadPosition)
+			return reportedHeadPosition;
+		reportedHeadPosition = head;
+		return head;
 	}
 
 	public int setVolume(float volume) {
