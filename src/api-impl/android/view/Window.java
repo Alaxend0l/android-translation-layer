@@ -49,6 +49,10 @@ public class Window {
 		// DecorView grabs all touch events and propagates them in Java
 		decorView.native_registerTouchEventPropagation(decorView.widget);
 		decorView.setId(android.R.id.content);
+		// Element-addressed interaction (harness): registers this window's
+		// view tree for the gated ATL_ELEMENT_DUMP=DIR dump; no-op unless
+		// the env var is set (android.atl.ATLElementDump).
+		android.atl.ATLElementDump.register(decorView);
 	}
 
 	public void set_native_window(long native_window) {
