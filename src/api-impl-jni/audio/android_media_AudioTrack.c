@@ -10,6 +10,44 @@
 
 #include "../generated_headers/android_media_AudioTrack.h"
 
+/* Per-track playback state, keyed by the PCM handle (which is unique per
+ * AudioTrack: the handle is closed in release()). ATL needs to know whether
+ * the app has started this track yet: Android renders nothing before
+ * AudioTrack.start(), and a stream that starts on its own as soon as the app
+ * pre-rolls data makes apps play by themselves (see write_frames()). */
+typedef struct {
+	gboolean started;        /* play() called, and no flush()/stop() since */
+	gboolean silence_logged; /* the "written before play()" line was printed */
+} track_state;
+
+static GHashTable *track_states;
+static GMutex track_states_lock;
+
+static track_state *track_state_get(snd_pcm_t *pcm, gboolean create)
+{
+	track_state *st = NULL;
+	g_mutex_lock(&track_states_lock);
+	if (!track_states && create)
+		track_states = g_hash_table_new(g_direct_hash, g_direct_equal);
+	if (track_states) {
+		st = g_hash_table_lookup(track_states, pcm);
+		if (!st && create) {
+			st = g_new0(track_state, 1);
+			g_hash_table_insert(track_states, pcm, st);
+		}
+	}
+	g_mutex_unlock(&track_states_lock);
+	return st;
+}
+
+static void track_state_remove(snd_pcm_t *pcm)
+{
+	g_mutex_lock(&track_states_lock);
+	if (track_states)
+		g_hash_table_remove(track_states, pcm);
+	g_mutex_unlock(&track_states_lock);
+}
+
 JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv *env, jobject this, jint streamType, jint rate, jint channel_config, jint audioFormat, jint buffer_size, jint mode)
 {
 
@@ -76,7 +114,24 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv 
 	snd_pcm_sw_params_malloc(&sw_params);
 	snd_pcm_sw_params_current(pcm_handle, sw_params);
 
-	snd_pcm_sw_params_set_start_threshold(pcm_handle, sw_params, period_size);
+	/* Android does not render a single frame before AudioTrack.start():
+	 * frames written earlier sit in the track buffer and only become
+	 * audible once the track is started. A start threshold of one period
+	 * (what this used to be) makes ALSA start the stream on the app's
+	 * first pre-roll write, so apps that prepare/seek without playing
+	 * (media3 priming a freshly restored queue right after launch) leak
+	 * that buffer to the device and then starve it: music and stuttering
+	 * "skipping" on boot although the app never called play()
+	 * (Gramophone on the desktop PoC, 2026-11-23: PipeWire showed this
+	 * stream [active] with zero AudioTrack.play() calls in the log, and
+	 * the phone's grres runs auto-played at boot the same way).
+	 * Asking for the whole buffer means nothing starts by itself; play()
+	 * starts the stream explicitly a few lines below. The safety net in
+	 * write_frames() covers devices/servers that clamp the threshold. */
+	snd_pcm_uframes_t buffer_size_frames = 0;
+	snd_pcm_hw_params_get_buffer_size(params, &buffer_size_frames);
+	snd_pcm_sw_params_set_start_threshold(pcm_handle, sw_params,
+		buffer_size_frames ? buffer_size_frames : period_size * 4);
 	/* One period, not "the whole buffer": Android's AudioTrack starts
 	 * consuming in real time right after play(), and media3's position
 	 * watchdog flags a non-advancing head as an underrun within ~a second
@@ -112,6 +167,7 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1constructor(JNIEnv 
 	_SET_LONG_FIELD(this, "params", _INTPTR(params));
 	_SET_INT_FIELD(this, "channels", channels_out);
 	_SET_INT_FIELD(this, "period_time", period_time);
+	track_state_get(pcm_handle, TRUE);
 
 	return 0;
 }
@@ -222,6 +278,9 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1play(JNIEnv *env, j
 	snd_async_handler_t *pcm_callback;
 
 	snd_async_add_pcm_handler(&pcm_callback, pcm_handle, periodic_update_callback, callback_data);
+	track_state *st = track_state_get(pcm_handle, TRUE);
+	if (st)
+		st->started = TRUE;
 	snd_pcm_start(pcm_handle);
 	snd_pcm_pause(pcm_handle, FALSE);
 	/*--↑*/
@@ -243,6 +302,22 @@ static int write_frames(snd_pcm_t *pcm_handle, const void *buffer, int frames_to
 	if (frames_written < 0) {
 		printf("ERROR. Can't write to PCM device. %s\n", snd_strerror(frames_written));
 		frames_written = 0;
+	}
+	track_state *st = track_state_get(pcm_handle, FALSE);
+	if (st && !st->started && frames_written > 0) {
+		/* Safety net for the start_threshold above: some servers (the
+		 * PipeWire ALSA plugin among them) may start the stream anyway
+		 * once data is available. Android renders nothing before
+		 * AudioTrack.start(), so put the stream back to PAUSED - the
+		 * frames stay in the buffer and are played by play(). */
+		if (snd_pcm_state(pcm_handle) == SND_PCM_STATE_RUNNING) {
+			int ret = snd_pcm_pause(pcm_handle, TRUE);
+			if (!st->silence_logged) {
+				st->silence_logged = TRUE;
+				printf("AudioTrack: %d frames written before play(); stream paused "
+				       "(pause ret=%d: %s)\n", (int) frames_written, ret, snd_strerror(-ret));
+			}
+		}
 	}
 	return frames_written;
 }
@@ -278,6 +353,9 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1pause(JNIEnv *env, 
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
 	if (!pcm_handle)
 		return;
+	track_state *st = track_state_get(pcm_handle, FALSE);
+	if (st)
+		st->started = FALSE;
 	snd_pcm_pause(pcm_handle, TRUE);
 }
 
@@ -288,6 +366,11 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1flush(JNIEnv *env, 
 		return;
 	/* Discard frames written but not played (Android flush()/stop()).
 	 * Errors by stream state are intentionally ignored. */
+	track_state *st = track_state_get(pcm_handle, FALSE);
+	if (st) {
+		st->started = FALSE;
+		st->silence_logged = FALSE;
+	}
 	snd_pcm_drop(pcm_handle);
 }
 
@@ -296,6 +379,7 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1release(JNIEnv *env
 	snd_pcm_t *pcm_handle = _PTR(_GET_LONG_FIELD(this, "pcm_handle"));
 	if (!pcm_handle)
 		return;
+	track_state_remove(pcm_handle);
 	snd_pcm_close(pcm_handle);
 	_SET_LONG_FIELD(this, "pcm_handle", 0);
 }
