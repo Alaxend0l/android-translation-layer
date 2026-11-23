@@ -7,6 +7,11 @@ public class InputDevice {
 
 	public static final int SOURCE_CLASS_BUTTON = 0x00000001;
 	public static final int SOURCE_CLASS_POINTER = 0x00000002;
+
+	/* Mask for the source class bits (AOSP InputDevice.SOURCE_CLASS_MASK);
+	 * MotionEvent.isTouchEvent() needs it and apps that filter by source
+	 * class would otherwise hit NoSuchFieldError. */
+	public static final int SOURCE_CLASS_MASK = 0x00000003;
 	public static final int SOURCE_CLASS_JOYSTICK = 0x00000010;
 	public static final int SOURCE_CLASS_GAMEPAD = 0x00000400 | SOURCE_CLASS_BUTTON;
 	public static final int SOURCE_KEYBOARD = 0x00000100 | SOURCE_CLASS_BUTTON;

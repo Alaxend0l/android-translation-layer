@@ -1821,7 +1821,13 @@ public final class MotionEvent extends InputEvent {
 	 */
 	public final void scale(float scale) {
 		if (scale != 1.0f) {
-			nativeScale(mNativePtr, scale);
+			/* The natives of core/jni/android_view_MotionEvent.cpp are not
+			 * part of this fork (calling one raises UnsatisfiedLinkError), so
+			 * scale the stored coordinates the getters read: x/y and raw x/y,
+			 * as AOSP does. AOSP also scales the touch/tool axes, which this
+			 * class does not store (see getSize). */
+			for (int i = 0; i < coords.length; i++)
+				coords[i] *= scale;
 		}
 	}
 
@@ -1902,7 +1908,22 @@ public final class MotionEvent extends InputEvent {
 	 * @hide
 	 */
 	public final boolean isTouchEvent() {
-		return nativeIsTouchEvent(mNativePtr);
+		/* AOSP's answer (libinput MotionEvent.isTouchEvent, matching the
+		 * javadoc above): pointer-class source, and not one of the actions
+		 * where the pointer is not down. Implemented here because the native
+		 * it used to call does not exist in this fork, so every call raised
+		 * UnsatisfiedLinkError. */
+		if ((source & InputDevice.SOURCE_CLASS_MASK) != InputDevice.SOURCE_CLASS_POINTER)
+			return false;
+		switch (getActionMasked()) {
+			case ACTION_HOVER_ENTER:
+			case ACTION_HOVER_MOVE:
+			case ACTION_HOVER_EXIT:
+			case ACTION_SCROLL:
+				return false;
+			default:
+				return true;
+		}
 	}
 
 	/**
@@ -1934,7 +1955,7 @@ public final class MotionEvent extends InputEvent {
 	@Override
 	public final void setTainted(boolean tainted) {
 		final int flags = getFlags();
-		nativeSetFlags(mNativePtr, tainted ? flags | FLAG_TAINTED : flags & ~FLAG_TAINTED);
+		atl_flags = tainted ? flags | FLAG_TAINTED : flags & ~FLAG_TAINTED;
 	}
 
 	/**
@@ -1957,7 +1978,9 @@ public final class MotionEvent extends InputEvent {
 	 * @hide
 	 */
 	public final void setDownTime(long downTime) {
-		nativeSetDownTimeNanos(mNativePtr, downTime * NS_PER_MS);
+		/* Stored, not passed to nativeSetDownTimeNanos: that symbol is not in
+		 * this fork, so the call raised UnsatisfiedLinkError. */
+		atl_down_time = downTime;
 	}
 
 	/**
