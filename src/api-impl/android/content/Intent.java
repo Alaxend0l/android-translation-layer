@@ -846,8 +846,22 @@ public class Intent implements Parcelable {
 
 	public static class ShortcutIconResource {
 
+		/* AOSP's public fields (the parcelable shape the launcher
+		 * shortcuts API passes around); the fork had none of them, so
+		 * fromContext could only hand back an empty object and the
+		 * caller's icon was silently lost (queue item 254). The fork's
+		 * class is a plain data holder rather than a Parcelable — nothing
+		 * parcels it here. */
+		public String packageName;
+		public String resourceName;
+
 		public static ShortcutIconResource fromContext(Context context, int id) {
-			return new ShortcutIconResource();
+			/* AOSP: the package that owns the resource plus its
+			 * "package:type/entry" name. */
+			ShortcutIconResource icon = new ShortcutIconResource();
+			icon.packageName = context.getPackageName();
+			icon.resourceName = context.getResources().getResourceName(id);
+			return icon;
 		}
 	}
 
