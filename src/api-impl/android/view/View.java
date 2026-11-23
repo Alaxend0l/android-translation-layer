@@ -3503,7 +3503,37 @@ public class View implements Drawable.Callback {
 		return atl_foreground;
 	}
 
-	public void setScrollbarFadingEnabled(boolean fadeEnabled) {}
+	/* Scrollbar fading (queue item 296): AOSP keeps fadeScrollBars in its
+	 * ScrollabilityCache (created by initScrollCache); the getter answers
+	 * false until that cache exists, and the cache itself defaults to
+	 * fading. Stored plainly here — the **scrollbar drawing gap** (noted
+	 * at setScrollBarStyle) stays recorded: nothing in ATL paints a
+	 * scrollbar for the fading state to apply to. AOSP also has
+	 * setScrollbarFadingEnabled's siblings (fade delay etc.) reading the
+	 * same cache. */
+	private boolean atl_scrollbar_fading_enabled = false;
+
+	public void setScrollbarFadingEnabled(boolean fadeEnabled) {
+		atl_scrollbar_fading_enabled = fadeEnabled;
+	}
+
+	public boolean isScrollbarFadingEnabled() {
+		return atl_scrollbar_fading_enabled;
+	}
+
+	/* Scrollbar position (queue item 297): AOSP's constants — copied
+	 * verbatim, apps compile against these values — and its
+	 * mVerticalScrollbarPosition, default DEFAULT. AOSP's setter also
+	 * recomputes opaque flags and padding, which only matter to its
+	 * scrollbar drawing and padding resolution; the **scrollbar drawing
+	 * gap** stays recorded. */
+	public static final int SCROLLBAR_POSITION_DEFAULT = 0;
+
+	public static final int SCROLLBAR_POSITION_LEFT = 1;
+
+	public static final int SCROLLBAR_POSITION_RIGHT = 2;
+
+	private int atl_vertical_scrollbar_position = SCROLLBAR_POSITION_DEFAULT;
 
 	/* Scrollbar style (queue item 283): AOSP keeps it in mViewFlags
 	 * (SCROLLBARS_STYLE_MASK — the fork already declares these
@@ -3520,7 +3550,13 @@ public class View implements Drawable.Callback {
 		atl_scrollbar_style = style & SCROLLBARS_STYLE_MASK;
 	}
 
-	public void setVerticalScrollbarPosition(int position) {}
+	public void setVerticalScrollbarPosition(int position) {
+		atl_vertical_scrollbar_position = position;
+	}
+
+	public int getVerticalScrollbarPosition() {
+		return atl_vertical_scrollbar_position;
+	}
 
 	public void setNestedScrollingEnabled(boolean enabled) {
 		nested_scrolling_enabled = enabled;
