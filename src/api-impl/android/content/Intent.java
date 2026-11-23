@@ -928,10 +928,18 @@ public class Intent implements Parcelable {
 		return component;
 	}
 
-	public void setSourceBounds(Rect sourceBounds) {}
+	/* Source bounds (queue items 264, 265): AOSP keeps a copy here (the
+	 * system sets it for drag-and-drop and launcher flows) and hands back
+	 * a copy; the fork dropped the value and answered null, so an app
+	 * reading back its own intent lost it. */
+	private Rect atl_source_bounds = null;
+
+	public void setSourceBounds(Rect sourceBounds) {
+		atl_source_bounds = sourceBounds != null ? new Rect(sourceBounds) : null;
+	}
 
 	public Rect getSourceBounds() {
-		return null;
+		return atl_source_bounds != null ? new Rect(atl_source_bounds) : null;
 	}
 
 	public void setSelector(Intent selector) {
