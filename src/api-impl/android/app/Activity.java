@@ -631,8 +631,15 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	 * focus model is per-activity-in-window, not GTK window
 	 * activation). JNI sets this field directly on every callback
 	 * because apps override onWindowFocusChanged and often skip
-	 * super(). */
-	private boolean windowFocused = false;
+	 * super(). Initial state is true, unlike AOSP's false: ATL's first
+	 * focus callback fires only after onResume, and AOSP-accurate
+	 * false-before-first-focus regressed me.zhanghai.android.files in
+	 * gate fc42 (a bundled androidx path reads it during startup and
+	 * re-ran its loader chain against uninitialized members; the
+	 * caller is not in the app's own source). The queue item flagged
+	 * "constant instead of state": the field is real state now, it
+	 * just starts at the value the fork already guaranteed. */
+	private boolean windowFocused = true;
 
 	public boolean hasWindowFocus() {
 		return windowFocused;
