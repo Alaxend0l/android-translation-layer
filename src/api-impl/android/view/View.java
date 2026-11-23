@@ -3445,7 +3445,18 @@ public class View implements Drawable.Callback {
 
 	public void setLabelFor(int id) {}
 
-	public ArrayList<View> getFocusables(int direction) { return new ArrayList<View>(); }
+	/* Focus candidates (queue item 160): AOSP's base View returns a
+	 * list holding just itself when it is focusable in touch mode /
+	 * visible / enabled; ViewGroup overrides it to collect descendants.
+	 * The old empty-list answer meant focus search through this chain
+	 * (setOnFocusChangeListener flows, directional D-pad moves) never
+	 * found any view. */
+	public ArrayList<View> getFocusables(int direction) {
+		ArrayList<View> focusables = new ArrayList<View>();
+		if (getVisibility() == VISIBLE && atl_focusable && isEnabled())
+			focusables.add(this);
+		return focusables;
+	}
 
 	public WindowInsets onApplyWindowInsets(WindowInsets insets) {
 		return insets;
