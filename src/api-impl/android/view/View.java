@@ -3877,6 +3877,10 @@ public class View implements Drawable.Callback {
 		return fading_edge_length;
 	}
 
+	/* Scrollbar width (queue item 299): AOSP returns its scroll cache's
+	 * scrollbar intrinsic width and 0 while no cache exists. ATL draws no
+	 * scrollbars (**scrollbar drawing gap**, noted at setScrollBarStyle)
+	 * and never builds that cache, so 0 is AOSP's own answer here. */
 	public int getVerticalScrollbarWidth() { return 0; }
 
 	public void saveAttributeDataForStyleable(Context ctxt, int[] styleable, AttributeSet attrs, TypedArray t, int defStyleAttr, int defStyleRes) {}

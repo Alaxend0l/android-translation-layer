@@ -181,6 +181,11 @@ public final class Bundle extends BaseBundle implements Cloneable, Parcelable {
 	 * @hide
 	 */
 	public boolean isParcelled() {
+		/* AOSP's answer is `mParcelledData != null`. This implementation
+		 * has no lazily-unparcelled representation (queue item 308: the
+		 * mParcelledData field is gone, values always live in mMap —
+		 * ATL never hands bundles through a Parcel to be unparcelled
+		 * later), so false is the faithful answer, not a stub. */
 		return false;
 	}
 
