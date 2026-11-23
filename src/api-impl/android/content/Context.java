@@ -558,6 +558,16 @@ public abstract class Context {
 
 	public abstract boolean stopService(Intent intent);
 
+	/* Service binding (queue item 227): bindService (abstract here,
+	 * ContextImpl implements it) really instantiates the service and
+	 * calls onServiceConnected, but **no registration is kept** —
+	 * nothing maps a ServiceConnection back to the bound service — so
+	 * unbindService cannot do the disconnect it promises. **Gap:
+	 * ServiceConnection tracking** (a bind registry, unbind releasing
+	 * it, onServiceDisconnected only on crash as AOSP has it). For now
+	 * the empty body leaves the service running (startService semantics
+	 * stay correct; stopService handles the instance) and re-binding
+	 * re-delivers onServiceConnected. */
 	public void unbindService(ServiceConnection serviceConnection) {}
 
 	public void unregisterReceiver(BroadcastReceiver receiver) {

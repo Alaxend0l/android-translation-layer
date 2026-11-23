@@ -3801,7 +3801,13 @@ public class View implements Drawable.Callback {
 
 	public Bitmap getDrawingCache() { return null; }
 
-	public void announceForAccessibility(CharSequence text) {}
+	public void announceForAccessibility(CharSequence text) {
+		/* AOSP pushes a text announcement through the accessibility
+		 * node pipeline to TalkBack (queue item 235). ATL has no
+		 * accessibility node pipeline at all (gap recorded at
+		 * setAccessibilityPaneTitle), so there is no node to announce
+		 * through; an honest no-op. */
+	}
 
 	public WindowInsetsController getWindowInsetsController() {
 		return native_get_window(widget).getInsetsController();
@@ -4023,7 +4029,13 @@ public class View implements Drawable.Callback {
 		matrix.postTranslate(-left, -top);
 	}
 	public boolean isShowingLayoutBounds() {
-		return true;
+		/* AOSP's debug feature ("Show layout bounds", toggled via the
+		 * developer option / `wm debug-layouts` broadcast) reflects
+		 * whether the layout-bounds overlay is painted; default false
+		 * (queue item 237). The fork painted no such overlay, so the
+		 * old constant true told any checker the opposite of what was
+		 * on screen. */
+		return false;
 	}
 
 	public boolean callOnClick() {
