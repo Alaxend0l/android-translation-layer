@@ -2352,8 +2352,12 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_ORIENTATION
 	 */
 	public final float getOrientation(int pointerIndex) {
-		return 0; // arbitrary
-			  //		return nativeGetAxisValue(mNativePtr, AXIS_ORIENTATION, pointerIndex, HISTORY_CURRENT);
+		/* AOSP reads AXIS_ORIENTATION, which only exists when the device
+		 * reports tilt (TouchInputMapper: orientation stays 0 otherwise), and
+		 * ATL's touchscreen reports none - 0 is its answer, and obtain(...)
+		 * callers can set it through PointerCoords.getAxisValue once the axis
+		 * is stored (getAxisValue gap, not this item). */
+		return 0;
 	}
 
 	/**
@@ -2508,8 +2512,12 @@ public final class MotionEvent extends InputEvent {
 	 * @return Returns the number of historical points in the event.
 	 */
 	public final int getHistorySize() {
+		/* Queue item 380: 0 is AOSP's answer here. History comes from the
+		 * input reader batching samples that arrived between two dispatches
+		 * (nativeAddBatch above, which this fork never calls because GTK
+		 * delivers one motion per event); with no batch the count is 0 and
+		 * the getHistorical* calls see no positions, as in AOSP. */
 		return 0;
-		//return nativeGetHistorySize(mNativePtr);
 	}
 
 	/**
