@@ -725,7 +725,9 @@ public class View implements Drawable.Callback {
 	}
 
 	public interface OnHoverListener {
-		// TODO
+		/* AOSP signature (was `// TODO`, so the listener a hover chain
+		 * should call had no method to call - queue item 158). */
+		boolean onHover(View v, MotionEvent event);
 	}
 
 	public interface OnApplyWindowInsetsListener {
@@ -1920,7 +1922,11 @@ public class View implements Drawable.Callback {
 		this.longclickable = longClickable;
 	}
 
-	public void setOnHoverListener(OnHoverListener listener) {}
+	private OnHoverListener on_hover_listener = null;
+
+	public void setOnHoverListener(OnHoverListener listener) {
+		on_hover_listener = listener;
+	}
 
 	@Export
 	public final void measure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -3316,7 +3322,20 @@ public class View implements Drawable.Callback {
 	}
 
 	@Export
-	protected boolean dispatchHoverEvent(MotionEvent event) { return false; }
+	/* AOSP chain (queue item 158): listener if set, else onHoverEvent.
+	 * ATL's GTK input does not feed hover MotionEvents into the view
+	 * tree yet (input gap), but apps' re-dispatch and listener paths
+	 * (tooltips, touchpads via injected events) get the real chain
+	 * now. */
+	protected boolean dispatchHoverEvent(MotionEvent event) {
+		if (on_hover_listener != null)
+			return on_hover_listener.onHover(this, event);
+		return onHoverEvent(event);
+	}
+
+	protected boolean onHoverEvent(MotionEvent event) {
+		return false;
+	}
 
 	public ActionMode startActionMode(ActionMode.Callback callback, int type) { return null; }
 
