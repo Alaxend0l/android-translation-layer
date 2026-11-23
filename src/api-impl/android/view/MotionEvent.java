@@ -2032,7 +2032,11 @@ public final class MotionEvent extends InputEvent {
 	 */
 	@Override
 	public final long getEventTimeNano() {
-		return eventTime * 1000; // FIXME
+		/* AOSP returns the native event time in nanoseconds; eventTime is
+		 * milliseconds (SystemClock.uptimeMillis), so the conversion is
+		 * * NS_PER_MS - the previous * 1000 reported microseconds, a
+		 * thousandth of the real time (queue item 403). */
+		return eventTime * NS_PER_MS;
 	}
 
 	/**
