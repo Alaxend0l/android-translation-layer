@@ -72,6 +72,23 @@ public final class Configuration implements Comparable<Configuration> {
 	 */
 	public Locale locale = Locale.getDefault();
 
+	/* Locale list backing (queue item 212): AOSP keeps the list here and
+	 * keeps it consistent with `locale` lazily (getLocales calls
+	 * fixUpLocaleList first); getLocales/setLocales below used to be
+	 * commented-out stubs whose mLocaleList field was never even
+	 * declared, so setLocales(list) followed by getLocales() returned the
+	 * system default list, not what was set. */
+	private LocaleList mLocaleList = LocaleList.getEmptyLocaleList();
+
+	private void fixUpLocaleList() {
+		if ((locale == null && !mLocaleList.isEmpty()) ||
+				(locale != null && !locale.equals(mLocaleList.get(0)))) {
+			mLocaleList = locale == null
+					? LocaleList.getEmptyLocaleList()
+					: new LocaleList(locale);
+		}
+	}
+
 	/**
 	 * Locale should persist on setting.  This is hidden because it is really
 	 * questionable whether this is the right way to expose the functionality.
@@ -1520,9 +1537,8 @@ public final class Configuration implements Comparable<Configuration> {
 	* @return The locale list.
 	*/
 	public LocaleList getLocales() {
-		return LocaleList.getDefault();
-		/*fixUpLocaleList();
-		return mLocaleList;*/
+		fixUpLocaleList();
+		return mLocaleList;
 	}
 	/**
 	* Set the locale list. This is the preferred way for setting up the locales (instead of using
@@ -1536,9 +1552,12 @@ public final class Configuration implements Comparable<Configuration> {
 	* @param locales The locale list. If null, an empty LocaleList will be assigned.
 	*/
 	public void setLocales(LocaleList locales) {
-		/*mLocaleList = locales == null ? LocaleList.getEmptyLocaleList() : locales;
+		mLocaleList = locales == null ? LocaleList.getEmptyLocaleList() : locales;
+		/* AOSP: locale = mLocaleList.get(0); the fork's LocaleList.get is
+		 * null-safe on an empty list, so an empty set means no primary
+		 * locale, exactly like AOSP. */
 		locale = mLocaleList.get(0);
-		setLayoutDirection(locale);*/
+		setLayoutDirection(locale);
 	}
 
 	/**
