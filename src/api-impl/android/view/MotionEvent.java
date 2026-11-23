@@ -1363,9 +1363,6 @@ public final class MotionEvent extends InputEvent {
 	                                                      int pointerIndex, PointerProperties outPointerProperties);
 
 	private static native void nativeScale(int nativePtr, float scale);
-	private static /* native */ void nativeTransform(int nativePtr, Matrix matrix) {
-	}
-
 	private static final int X_OFFSET = 0;
 	private static final int Y_OFFSET = 1;
 	private static final int RAW_X_OFFSET = 2;
@@ -3036,7 +3033,70 @@ public final class MotionEvent extends InputEvent {
 			throw new IllegalArgumentException("matrix must not be null");
 		}
 
-		nativeTransform(mNativePtr, matrix);
+		/* The nativeTransform stub above does nothing, and the real
+		 * native is not part of this fork, so apply the matrix the way
+		 * AOSP does (libinput libs/input/Input.cpp MotionEvent::transform,
+		 * checked at android-7.1.0_r7; the JNI just hands over the matrix's
+		 * 9 values): points move with a perspective divide, window
+		 * coordinates change while the raw coordinates are preserved, and
+		 * the orientation axis is rotated. This class keeps window coords in
+		 * coords[X/Y] and raw in coords[RAW_*] directly (no x/y offset
+		 * fields, i.e. AOSP's offset == 0 case), so transform coords[X/Y]
+		 * and leave RAW alone. */
+		final float[] m = new float[9];
+		matrix.getValues(m);
+
+		/* How the origin moves, for the orientation vectors. */
+		float[] origin = new float[2];
+		atlTransformPoint(m, 0f, 0f, origin);
+
+		for (int i = 0; i < ids.length; i++) {
+			float[] p = new float[2];
+			atlTransformPoint(m, coords[4 * i + X_OFFSET], coords[4 * i + Y_OFFSET], p);
+			coords[4 * i + X_OFFSET] = p[0];
+			coords[4 * i + Y_OFFSET] = p[1];
+		}
+		if (atl_axes != null) {
+			for (int i = 0; i < atl_axes.length; i++) {
+				PointerCoords c = atl_axes[i];
+				c.setAxisValue(AXIS_ORIENTATION,
+						atlTransformAngle(m, c.getAxisValue(AXIS_ORIENTATION),
+								origin[0], origin[1]));
+			}
+		}
+	}
+
+	/* libinput Input.cpp transformPoint/transformAngle, transcribed
+	 * (including the multiply-by-zero when the perspective row maps to
+	 * 0, "apply the perspective transform like Skia"). */
+	private static void atlTransformPoint(float[] matrix, float x, float y, float[] out) {
+		float newX = matrix[0] * x + matrix[1] * y + matrix[2];
+		float newY = matrix[3] * x + matrix[4] * y + matrix[5];
+		float newZ = matrix[6] * x + matrix[7] * y + matrix[8];
+		if (newZ != 0.0f) {
+			newZ = 1.0f / newZ;
+		}
+		out[0] = newX * newZ;
+		out[1] = newY * newZ;
+	}
+
+	private static float atlTransformAngle(float[] matrix, float angleRadians,
+			float originX, float originY) {
+		/* A vector oriented angleRadians clockwise from vertical
+		 * (down is +Y, right is +X). */
+		float x = (float) Math.sin(angleRadians);
+		float y = -(float) Math.cos(angleRadians);
+		float[] p = new float[2];
+		atlTransformPoint(matrix, x, y, p);
+		x = p[0] - originX;
+		y = p[1] - originY;
+		float result = (float) Math.atan2(x, -y);
+		if (result < -Math.PI / 2) {
+			result += (float) Math.PI;
+		} else if (result > Math.PI / 2) {
+			result -= (float) Math.PI;
+		}
+		return result;
 	}
 
 	/**
