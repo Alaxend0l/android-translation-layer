@@ -8,6 +8,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageParser;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -592,7 +594,37 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public Intent getParentActivityIntent() {
-		return null;
+		/* AOSP reads mActivityInfo.parentActivityName (the manifest's
+		 * android:parentActivityName); the fork's Activity keeps no
+		 * ActivityInfo, but the value does exist — the PackageManager
+		 * answers from the parsed manifest and PackageParser fills
+		 * parentActivityName fully qualified (buildClassName), so ask
+		 * it for this activity's info (queue item 209). */
+		ComponentName me = getComponentName();
+		if (me == null)
+			me = new ComponentName(getPackageName(), getClass().getName());
+		String parentName;
+		try {
+			parentName = getPackageManager().getActivityInfo(me, 0).parentActivityName;
+		} catch (PackageManager.NameNotFoundException e) {
+			return null;
+		}
+		if (parentName == null || parentName.isEmpty())
+			return null;
+		/* AOSP: if the parent itself has no parent, hand back a
+		 * main-activity intent (that is what Up should launch); else a
+		 * plain component intent for it. */
+		final ComponentName target = new ComponentName(this, parentName);
+		try {
+			final ActivityInfo parentInfo = getPackageManager().getActivityInfo(target, 0);
+			if (parentInfo.parentActivityName == null)
+				return Intent.makeMainActivity(target);
+		} catch (PackageManager.NameNotFoundException e) {
+			Slog.e(TAG, "getParentActivityIntent: bad parentActivityName '" + parentName +
+			           "' in manifest");
+			return null;
+		}
+		return new Intent().setComponent(target);
 	}
 
 	@Override

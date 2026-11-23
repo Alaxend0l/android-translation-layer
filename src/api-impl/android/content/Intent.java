@@ -773,6 +773,12 @@ public class Intent implements Parcelable {
 		return "Intent [component=" + component + ", extras=" + extras + ", action=" + action + ", type=" + type + ", uri=" + data + "]";
 	}
 
+	/* AOSP static factory the fork did not declare (queue item 209 uses
+	 * it): an ACTION_MAIN intent targeting the component. */
+	public static Intent makeMainActivity(ComponentName componentName) {
+		return new Intent(ACTION_MAIN).setComponent(componentName);
+	}
+
 	public static Intent createChooser(Intent target, CharSequence title) {
 		return target;
 	}
