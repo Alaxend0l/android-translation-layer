@@ -829,8 +829,13 @@ public class Intent implements Parcelable {
 		return extras.getStringArrayList(name);
 	}
 
+	/* Clip data (queue item 169 pair): AOSP keeps the ClipData on the
+	 * Intent (content:// drags and share flows read it back); the fork
+	 * dropped it and answered null. */
+	private ClipData atl_clip_data = null;
+
 	public ClipData getClipData() {
-		return null;
+		return atl_clip_data;
 	}
 
 	public static class ShortcutIconResource {
@@ -913,7 +918,9 @@ public class Intent implements Parcelable {
 		this.selector = selector;
 	}
 
-	public void setClipData(ClipData clip) {}
+	public void setClipData(ClipData clip) {
+		atl_clip_data = clip;
+	}
 
 	public String resolveType(Context context) {
 		return type;
