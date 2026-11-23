@@ -2853,7 +2853,9 @@ public class View implements Drawable.Callback {
 	}
 
 	public float getZ() {
-		return elevation;
+		/* AOSP: elevation + translationZ (queue item 182). ViewGroup's
+		 * child sort reads this. */
+		return elevation + atl_translation_z;
 	}
 
 	protected void onSizeChanged(int w, int h, int oldw, int oldh) {}
@@ -3052,9 +3054,21 @@ public class View implements Drawable.Callback {
 		return pivotYSet ? pivotY : getHeight() / 2f;
 	}
 
-	public float getTranslationZ() { return 0.f; }
+	/* Translation Z (queue item 182): AOSP keeps it as real state and
+	 * getZ() is elevation + translationZ. That matters in ATL, not just in
+	 * HWUI: ViewGroup.addView sorts children by getZ() before handing the
+	 * order to GTK, so with translationZ dropped the sort saw elevation
+	 * only (setZ was empty too, so setting z directly did nothing). */
+	private float atl_translation_z = 0f;
 
-	public void setTranslationZ(float translationZ) {}
+	public float getTranslationZ() {
+		return atl_translation_z;
+	}
+
+	public void setTranslationZ(float translationZ) {
+		atl_translation_z = translationZ;
+		invalidate();
+	}
 
 	/* AOSP returns the visibility flags currently applied to the
 	 * window; queue item 127 flagged the constant 0. ATL's window model
@@ -3088,8 +3102,14 @@ public class View implements Drawable.Callback {
 
 	public WindowId getWindowId() { return null; }
 
+	/* isInLayout (queue item 185): the FIXME is resolved by using the flag
+	 * the fork already maintains — layoutInternal() sets in_layout for the
+	 * duration of the GTK-driven layout pass (the same window-driven pass
+	 * AOSP's isInLayout() describes) and clears it at the end. Apps use
+	 * this to avoid re-entrant requestLayout() from a layout pass; the
+	 * constant false hid that state. */
 	public boolean isInLayout() {
-		return false; // FIXME
+		return in_layout;
 	}
 
 	/* Text direction state (queue item 140): AOSP stores it and derives
@@ -3652,7 +3672,12 @@ public class View implements Drawable.Callback {
 
 	public TouchDelegate getTouchDelegate() { return null; }
 
-	public void setZ(float z) {}
+	public void setZ(float z) {
+		/* AOSP: z is the sum of elevation and translationZ, so setting it
+		 * moves translationZ (queue item 182's pair). The fork's setter was
+		 * empty, so setZ() had no effect while getZ() reported elevation. */
+		setTranslationZ(z - getElevation());
+	}
 
 	/* Copyright (C) 2006 The Android Open Source Project */
 	protected void drawableStateChanged() {
