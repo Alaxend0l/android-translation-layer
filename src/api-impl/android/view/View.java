@@ -3423,7 +3423,19 @@ public class View implements Drawable.Callback {
 		nested_scrolling_enabled = enabled;
 	}
 
-	public void setTouchDelegate(TouchDelegate touchDelegate) {}
+	/* Touch delegation (queue item 245): AOSP keeps the delegate here
+	 * and getTouchDelegate() reads it back; its touch hit-testing then
+	 * asks the delegate whether the touch belongs to it
+	 * (touchDelegateExists). ATL receives touches as GTK gestures and
+	 * dispatches them to the widget GTK picked, so there is no
+	 * Android-side hit-test to consult the delegate in — **gap: touch
+	 * delegation in ATL's input path**. Storage + round-trip is what the
+	 * pair guarantees and what apps (and androidx) read back. */
+	private TouchDelegate atl_touch_delegate = null;
+
+	public void setTouchDelegate(TouchDelegate touchDelegate) {
+		atl_touch_delegate = touchDelegate;
+	}
 
 	/* Drag and drop (queue item 221): the listener is stored now, but
 	 * nothing can call it: the fork's OnDragListener is an empty marker
@@ -4128,7 +4140,10 @@ public class View implements Drawable.Callback {
 		return atl_text_direction;
 	}
 
-	public TouchDelegate getTouchDelegate() { return null; }
+	public TouchDelegate getTouchDelegate() {
+		/* queue item 245: reads back what setTouchDelegate stored. */
+		return atl_touch_delegate;
+	}
 
 	public void setZ(float z) {
 		/* AOSP: z is the sum of elevation and translationZ, so setting it
