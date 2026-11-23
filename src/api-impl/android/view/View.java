@@ -1814,6 +1814,9 @@ public class View implements Drawable.Callback {
 		 * Constants map to patterns on real devices) is a separate gap. */
 		if ((flags & (FLAG_SUPPRESS_HAPTIC | FLAG_TACTILE_FEEDBACK_DISABLED)) != 0)
 			return false;
+		/* queue item 268: AOSP's first gate is the per-view flag. */
+		if (!isHapticFeedbackEnabled())
+			return false;
 		Vibrator vibrator = (Vibrator)getContext().getSystemService("vibrator");
 		vibrator.vibrate(10);
 		return true;
@@ -3221,7 +3224,20 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	public void setHapticFeedbackEnabled(boolean hapticFeedbackEnabled) {}
+	/* Haptic feedback (queue item 268): AOSP keeps the flag (default on,
+	 * from the view root's setting) and performHapticFeedback returns
+	 * false without it. The fork vibrates for real (queue item 136's
+	 * work), so honouring the flag is observable: an app that turns
+	 * haptics off now really stays quiet. */
+	private boolean atl_haptic_feedback_enabled = true;
+
+	public void setHapticFeedbackEnabled(boolean hapticFeedbackEnabled) {
+		atl_haptic_feedback_enabled = hapticFeedbackEnabled;
+	}
+
+	public boolean isHapticFeedbackEnabled() {
+		return atl_haptic_feedback_enabled;
+	}
 
 	public StateListAnimator getStateListAnimator() {
 		/* AOSP keeps the animator set here (or loaded from
@@ -3895,9 +3911,22 @@ public class View implements Drawable.Callback {
 
 	protected void onConfigurationChanged(Configuration newConfig) {}
 
-	public boolean isDrawingCacheEnabled() { return false; }
+	/* Drawing cache (queue item 267): AOSP keeps the enabled flag (and
+	 * getDrawingCache() returns the cached Bitmap once built, null while
+	 * disabled). The flag round-trips now; the Bitmap itself cannot be
+	 * produced — **gap: drawing-cache/snapshot subsystem**: AOSP renders
+	 * the view into a Bitmap with its own software renderer, and ATL has
+	 * no such path (its drawing goes through GTK/GSK), so
+	 * getDrawingCache/buildDrawingCache have nothing to build. */
+	private boolean atl_drawing_cache_enabled = false;
 
-	public void setDrawingCacheEnabled(boolean enabled) {}
+	public boolean isDrawingCacheEnabled() {
+		return atl_drawing_cache_enabled;
+	}
+
+	public void setDrawingCacheEnabled(boolean enabled) {
+		atl_drawing_cache_enabled = enabled;
+	}
 
 	public void buildDrawingCache(boolean autoScale) {}
 
