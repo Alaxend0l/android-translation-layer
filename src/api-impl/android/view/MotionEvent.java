@@ -1406,9 +1406,17 @@ public final class MotionEvent extends InputEvent {
 
 	private long atl_down_time = ATL_DOWN_TIME_UNSET;
 
-	private float[] atl_pressures = null;
-
-	private float[] atl_sizes = null;
+	/* Per-pointer axis values from the caller's PointerCoords (queue
+	 * item 402: getTouchMajor/getToolMinor/getAxisValue/... answered
+	 * the constant 0 of the nativeGetAxisValue stub, discarding axes
+	 * an obtain(...) caller had described). AOSP keeps them in the
+	 * event's PointerCoords samples (libinput Input.cpp), and
+	 * PointerCoords.getAxisValue answers 0 for axes nobody set - which
+	 * is also the answer for events the JNI produces (that touchscreen
+	 * has no touch/tool axes: TouchInputMapper SizeCalibration::NONE
+	 * gives 0 for all of them). x/y stay in coords[] as the source of
+	 * truth (offsetLocation/scale/transform move those). */
+	private PointerCoords[] atl_axes = null;
 
 	/* AOSP takes the device id from the InputDevice that produced the
 	 * event. ATL has one input source and InputDevice.getDeviceIds()
@@ -1534,16 +1542,16 @@ public final class MotionEvent extends InputEvent {
 		ev.eventTime = eventTime;
 		ev.ids = new int[pointerCount];
 		ev.coords = new float[pointerCount * 4];
-		ev.atl_pressures = new float[pointerCount];
-		ev.atl_sizes = new float[pointerCount];
+		ev.atl_axes = new PointerCoords[pointerCount];
 		for (int i = 0; i < pointerCount; i++) {
 			ev.ids[i] = pointerProperties[i].id;
 			ev.coords[i * 4] = pointerCoords[i].x;
 			ev.coords[i * 4 + 1] = pointerCoords[i].y;
 			ev.coords[i * 4 + 2] = pointerCoords[i].x;
 			ev.coords[i * 4 + 3] = pointerCoords[i].y;
-			ev.atl_pressures[i] = pointerCoords[i].pressure;
-			ev.atl_sizes[i] = pointerCoords[i].size;
+			/* Copy, so later changes to the caller's arrays do not move
+			 * the event under it (AOSP copies the samples too). */
+			ev.atl_axes[i] = new PointerCoords(pointerCoords[i]);
 		}
 		/* Queue items 374, 375, 379, 381: these arguments used to be
 		 * thrown away (the natives that would have stored them are not
@@ -1670,8 +1678,12 @@ public final class MotionEvent extends InputEvent {
 			ev.atl_meta_state = metaState;
 			ev.atl_edge_flags = edgeFlags;
 			ev.atl_device_id = deviceId;
-			ev.atl_pressures = new float[] {pressure};
-			ev.atl_sizes = new float[] {size};
+			PointerCoords pc = new PointerCoords();
+			pc.x = x;
+			pc.y = y;
+			pc.pressure = pressure;
+			pc.size = size;
+			ev.atl_axes = new PointerCoords[] {pc};
 			return ev;
 		}
 	}
@@ -1761,10 +1773,11 @@ public final class MotionEvent extends InputEvent {
 		ev.atl_flags = other.atl_flags;
 		ev.atl_button_state = other.atl_button_state;
 		ev.atl_device_id = other.atl_device_id;
-		if (other.atl_pressures != null)
-			ev.atl_pressures = other.atl_pressures.clone();
-		if (other.atl_sizes != null)
-			ev.atl_sizes = other.atl_sizes.clone();
+		if (other.atl_axes != null) {
+			ev.atl_axes = new PointerCoords[other.atl_axes.length];
+			for (int i = 0; i < other.atl_axes.length; i++)
+				ev.atl_axes[i] = new PointerCoords(other.atl_axes[i]);
+		}
 
 		return ev;
 	}
@@ -1823,11 +1836,22 @@ public final class MotionEvent extends InputEvent {
 		if (scale != 1.0f) {
 			/* The natives of core/jni/android_view_MotionEvent.cpp are not
 			 * part of this fork (calling one raises UnsatisfiedLinkError), so
-			 * scale the stored coordinates the getters read: x/y and raw x/y,
-			 * as AOSP does. AOSP also scales the touch/tool axes, which this
-			 * class does not store (see getSize). */
+			 * scale the stored coordinates the getters read: x/y and raw x/y
+			 * (AOSP scales the samples and the x/y offset, which is what raw
+			 * coordinates stand in for here). AOSP's PointerCoords::scale also
+			 * scales the touch/tool axes but not pressure/size (normalized) or
+			 * orientation (meaningless to scale) - libinput Input.cpp. */
 			for (int i = 0; i < coords.length; i++)
 				coords[i] *= scale;
+			if (atl_axes != null) {
+				for (int i = 0; i < atl_axes.length; i++) {
+					PointerCoords c = atl_axes[i];
+					c.setAxisValue(AXIS_TOUCH_MAJOR, c.getAxisValue(AXIS_TOUCH_MAJOR) * scale);
+					c.setAxisValue(AXIS_TOUCH_MINOR, c.getAxisValue(AXIS_TOUCH_MINOR) * scale);
+					c.setAxisValue(AXIS_TOOL_MAJOR, c.getAxisValue(AXIS_TOOL_MAJOR) * scale);
+					c.setAxisValue(AXIS_TOOL_MINOR, c.getAxisValue(AXIS_TOOL_MINOR) * scale);
+				}
+			}
 		}
 	}
 
@@ -2061,7 +2085,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOUCH_MAJOR
 	 */
 	public final float getTouchMajor() {
-		return nativeGetAxisValue(mNativePtr, AXIS_TOUCH_MAJOR, 0, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOUCH_MAJOR, 0);
 	}
 
 	/**
@@ -2071,7 +2095,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOUCH_MINOR
 	 */
 	public final float getTouchMinor() {
-		return nativeGetAxisValue(mNativePtr, AXIS_TOUCH_MINOR, 0, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOUCH_MINOR, 0);
 	}
 
 	/**
@@ -2081,7 +2105,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOOL_MAJOR
 	 */
 	public final float getToolMajor() {
-		return nativeGetAxisValue(mNativePtr, AXIS_TOOL_MAJOR, 0, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOOL_MAJOR, 0);
 	}
 
 	/**
@@ -2091,7 +2115,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOOL_MINOR
 	 */
 	public final float getToolMinor() {
-		return nativeGetAxisValue(mNativePtr, AXIS_TOOL_MINOR, 0, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOOL_MINOR, 0);
 	}
 
 	/**
@@ -2101,7 +2125,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_ORIENTATION
 	 */
 	public final float getOrientation() {
-		return nativeGetAxisValue(mNativePtr, AXIS_ORIENTATION, 0, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_ORIENTATION, 0);
 	}
 
 	/**
@@ -2118,7 +2142,7 @@ public final class MotionEvent extends InputEvent {
 			return scroll_dx;
 		else if (axis == AXIS_VSCROLL)
 			return scroll_dy;
-		return nativeGetAxisValue(mNativePtr, axis, 0, HISTORY_CURRENT);
+		return atlGetAxisValue(axis, 0);
 	}
 
 	/**
@@ -2218,6 +2242,26 @@ public final class MotionEvent extends InputEvent {
 		return coords[4 * pointerIndex + RAW_Y_OFFSET];
 	}
 
+	/* Axis values the caller described through PointerCoords (queue item
+	 * 402). x/y are read from coords[] because those are the fields this
+	 * class moves in offsetLocation()/scale()/transform(); every other
+	 * axis comes from the copied samples, and libinput's
+	 * PointerCoords::getAxisValue answers 0 for axes nobody set - which
+	 * is what the events the JNI produces report (that virtual
+	 * touchscreen reports no touch/tool/tilt axes: TouchInputMapper
+	 * SizeCalibration::NONE, android16-release). */
+	private float atlGetAxisValue(int axis, int pointerIndex) {
+		switch (axis) {
+			case AXIS_X:
+				return getX(pointerIndex);
+			case AXIS_Y:
+				return getY(pointerIndex);
+		}
+		if (atl_axes != null && pointerIndex >= 0 && pointerIndex < atl_axes.length)
+			return atl_axes[pointerIndex].getAxisValue(axis);
+		return 0f;
+	}
+
 	/**
 	 * Returns the current pressure of this event for the given pointer
 	 * <em>index</em> (use {@link #getPointerId(int)} to find the pointer
@@ -2232,8 +2276,8 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_PRESSURE
 	 */
 	public final float getPressure(int pointerIndex) {
-		if (atl_pressures != null && pointerIndex < atl_pressures.length)
-			return atl_pressures[pointerIndex];
+		if (atl_axes != null && pointerIndex >= 0 && pointerIndex < atl_axes.length)
+			return atl_axes[pointerIndex].getAxisValue(AXIS_PRESSURE);
 		/* Queue items 383, 384: 0 was not AOSP's answer. For a touchscreen
 		 * without a pressure axis - all ATL's events come from one -
 		 * frameworks/native's TouchInputMapper reports "pressure = isHovering
@@ -2265,13 +2309,12 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_SIZE
 	 */
 	public final float getSize(int pointerIndex) {
-		if (atl_sizes != null && pointerIndex < atl_sizes.length)
-			return atl_sizes[pointerIndex];
-		/* A size-less touchscreen gives SizeCalibration::NONE, and
-		 * TouchInputMapper then reports touchMajor/touchMinor/size 0
-		 * (android16-release), so 0 is AOSP's answer for ATL's virtual
-		 * touchscreen - the 1 that used to be here was not. */
-		return 0f;
+		/* obtain(...) callers get their PointerCoords size; for the events
+		 * the JNI produces a size-less touchscreen gives SizeCalibration::NONE,
+		 * and TouchInputMapper then reports size/touchMajor/touchMinor 0
+		 * (android16-release) - the arbitrary 1 that used to be here was not
+		 * AOSP's answer. */
+		return atlGetAxisValue(AXIS_SIZE, pointerIndex);
 	}
 
 	/**
@@ -2285,8 +2328,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOUCH_MAJOR
 	 */
 	public final float getTouchMajor(int pointerIndex) {
-		return 2.5f; // arbitrary
-			     //		return nativeGetAxisValue(mNativePtr, AXIS_TOUCH_MAJOR, pointerIndex, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOUCH_MAJOR, pointerIndex);
 	}
 
 	/**
@@ -2300,8 +2342,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOUCH_MINOR
 	 */
 	public final float getTouchMinor(int pointerIndex) {
-		return 2.5f; // arbitrary
-			     //		return nativeGetAxisValue(mNativePtr, AXIS_TOUCH_MINOR, pointerIndex, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOUCH_MINOR, pointerIndex);
 	}
 
 	/**
@@ -2317,7 +2358,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOOL_MAJOR
 	 */
 	public final float getToolMajor(int pointerIndex) {
-		return nativeGetAxisValue(mNativePtr, AXIS_TOOL_MAJOR, pointerIndex, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOOL_MAJOR, pointerIndex);
 	}
 
 	/**
@@ -2333,7 +2374,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_TOOL_MINOR
 	 */
 	public final float getToolMinor(int pointerIndex) {
-		return nativeGetAxisValue(mNativePtr, AXIS_TOOL_MINOR, pointerIndex, HISTORY_CURRENT);
+		return atlGetAxisValue(AXIS_TOOL_MINOR, pointerIndex);
 	}
 
 	/**
@@ -2353,11 +2394,10 @@ public final class MotionEvent extends InputEvent {
 	 */
 	public final float getOrientation(int pointerIndex) {
 		/* AOSP reads AXIS_ORIENTATION, which only exists when the device
-		 * reports tilt (TouchInputMapper: orientation stays 0 otherwise), and
-		 * ATL's touchscreen reports none - 0 is its answer, and obtain(...)
-		 * callers can set it through PointerCoords.getAxisValue once the axis
-		 * is stored (getAxisValue gap, not this item). */
-		return 0;
+		 * reports tilt (TouchInputMapper: orientation stays 0 otherwise) and
+		 * ATL's touchscreen reports none - 0 for its events; obtain(...) callers
+		 * get the axis they set (PointerCoords storage added with item 402). */
+		return atlGetAxisValue(AXIS_ORIENTATION, pointerIndex);
 	}
 
 	/**
@@ -2373,7 +2413,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_Y
 	 */
 	public final float getAxisValue(int axis, int pointerIndex) {
-		return nativeGetAxisValue(mNativePtr, axis, pointerIndex, HISTORY_CURRENT);
+		return atlGetAxisValue(axis, pointerIndex);
 	}
 
 	/**
