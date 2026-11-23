@@ -396,6 +396,11 @@ public class View implements Drawable.Callback {
 	 */
 	public static final int HAPTIC_FEEDBACK_ENABLED = 0x10000000;
 
+	/* performHapticFeedback flags (AOSP values; were absent from the
+	 * fork, so apps referencing them hit NoSuchFieldError). */
+	public static final int FLAG_SUPPRESS_HAPTIC = 0x00000001;
+	public static final int FLAG_TACTILE_FEEDBACK_DISABLED = 0x00000002;
+
 	/**
 	 * <p>Indicates that the view hierarchy should stop saving state when
 	 * it reaches this view.  If state saving is initiated immediately at
@@ -575,6 +580,10 @@ public class View implements Drawable.Callback {
 	 * @see #getOverScrollMode()
 	 * @see #setOverScrollMode(int)
 	 */
+	public static final int FOCUS_BEFORE_DESCENDANTS = 0x00020000;
+	public static final int FOCUS_AFTER_DESCENDANTS = 0x00040000;
+	public static final int FOCUS_BLOCK_DESCENDANTS = 0x00010000;
+
 	public static final int OVER_SCROLL_ALWAYS = 0;
 
 	/**
@@ -1735,10 +1744,18 @@ public class View implements Drawable.Callback {
 	}
 
 	public boolean performHapticFeedback(int feedbackConstant, int flags) {
-		// arbitrary; TODO: better mimic what AOSP does
+		/* Queue item 136: the old body vibrated for an arbitrary 10 ms
+		 * and returned true regardless of flags. AOSP gates on
+		 * FLAG_TACTILE_FEEDBACK_DISABLED / FLAG_SUPPRESS_HAPTIC (return
+		 * false, do nothing) and returns whether the haptic was
+		 * performed. ATL's only haptic output is a plain vibrate via
+		 * the Vibrator service - duration granularity (HapticFeedback-
+		 * Constants map to patterns on real devices) is a separate gap. */
+		if ((flags & (FLAG_SUPPRESS_HAPTIC | FLAG_TACTILE_FEEDBACK_DISABLED)) != 0)
+			return false;
 		Vibrator vibrator = (Vibrator)getContext().getSystemService("vibrator");
 		vibrator.vibrate(10);
-		return true; // FIXME why is it not void
+		return true;
 	}
 
 	public int getPaddingLeft() {
@@ -2681,7 +2698,13 @@ public class View implements Drawable.Callback {
 
 	public boolean isInTouchMode() { return false; }
 
-	public void stopNestedScroll() {}
+	public void stopNestedScroll() {
+		/* AOSP clears this view's active nested-scroll axes up its parent
+		 * chain. ATL has no nested scroll machinery at all (no
+		 * startNestedScroll, and ViewGroup's onNestedScroll/onNestedScroll-
+		 * Accepted callbacks throw - a separate gap), so there is no
+		 * state here to clear. Explicit no-op: queue item 138 finding. */
+	}
 
 	public long getDrawingTime() {
 		return System.currentTimeMillis();
