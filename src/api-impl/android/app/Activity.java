@@ -476,23 +476,46 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		Slog.i(TAG, "Activity.onPrepareDialog(" + id + ") called");
 	}
 
+	/* AOSP's args-carrying hook pair (queue item 272): the defaults call
+	 * through to the plain ones, so apps that override either shape get
+	 * AOSP's flow. */
+	protected Dialog onCreateDialog(int id, Bundle args) {
+		return onCreateDialog(id);
+	}
+
+	protected void onPrepareDialog(int id, Dialog dialog, Bundle args) {
+		onPrepareDialog(id, dialog);
+	}
+
 	private Map<Integer, Dialog> dialogs = new HashMap<Integer, Dialog>();
 
 	public final void showDialog(int id) {
-		Slog.i(TAG, "Activity.showDialog(" + id + ") called");
-		Dialog dialog = dialogs.get(id);
-		if (dialog == null)
-			dialogs.put(id, dialog = onCreateDialog(id));
-		if (dialog == null) {
-			Slog.w(TAG, "Dialog " + id + " was not created");
-			return;
-		}
-		onPrepareDialog(id, dialog);
-		dialog.show();
+		/* AOSP's body is this one-liner; the fork kept a full copy of the
+		 * flow here instead (queue item 272). */
+		showDialog(id, null);
 	}
 
-	public boolean showDialog(int id, Bundle args) {
-		return false;
+	public final boolean showDialog(int id, Bundle args) {
+		/* AOSP (queue item 272): create the dialog through
+		 * onCreateDialog(id, args) unless it is already managed, prepare
+		 * it with onPrepareDialog(id, dialog, args), show it, and answer
+		 * whether it could be created. The fork had the map and the
+		 * no-args flow working but this overload — the one apps pass
+		 * their arguments through — returned false without doing
+		 * anything, so deprecated-but-used dialog flows (ProgressDialog
+		 * confirmations and the like) silently showed nothing. */
+		Dialog dialog = dialogs.get(id);
+		if (dialog == null) {
+			dialog = onCreateDialog(id, args);
+			if (dialog == null) {
+				Slog.w(TAG, "Dialog " + id + " was not created");
+				return false;
+			}
+			dialogs.put(id, dialog);
+		}
+		onPrepareDialog(id, dialog, args);
+		dialog.show();
+		return true;
 	}
 
 	public void removeDialog(int id) {
