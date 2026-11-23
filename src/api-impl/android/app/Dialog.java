@@ -80,7 +80,16 @@ public class Dialog implements Window.Callback, DialogInterface {
 
 	public void setCancelable(boolean cancelable) {}
 
-	public void setOnCancelListener(OnCancelListener onCancelListener) {}
+	private OnCancelListener onCancelListener = null;
+
+	public void setOnCancelListener(OnCancelListener onCancelListener) {
+		/* AOSP stores it and fires it from the dismiss handler when the
+		 * dialog was cancelled (cancel(), back press, touch-outside), not on
+		 * plain dismiss(). AOSP also rejects this if setCancelMessage() was
+		 * used (IllegalStateException); setCancelMessage is an empty stub
+		 * here, so there is nothing to conflict with. */
+		this.onCancelListener = onCancelListener;
+	}
 
 	public void setOnDismissListener(OnDismissListener onDismissListener) {
 		this.onDismissListener = onDismissListener;
@@ -170,36 +179,52 @@ public class Dialog implements Window.Callback, DialogInterface {
 	@Override
 	public void onContentChanged() {
 	}
+	/* Window.Callback menu hooks, AOSP's Dialog defaults (oreo-release
+	 * Dialog.java). They threw UnsupportedOperationException: a live crash
+	 * class if anything ever routed a dialog window's menu events here
+	 * (nothing does yet - the fork's menu path only drives the Activity's
+	 * callbacks - so this is compile + gate verified, not witnessed).
+	 * AOSP's onPanelClosed/onMenuOpened only act for FEATURE_ACTION_BAR,
+	 * which this fork does not use, so they reduce to do-nothing/true. */
 	@Override
 	public boolean onCreatePanelMenu(int featureId, Menu menu) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onCreatePanelMenu'");
+		if (featureId == Window.FEATURE_OPTIONS_PANEL) {
+			return onCreateOptionsMenu(menu);
+		}
+		return false;
 	}
 	@Override
 	public View onCreatePanelView(int featureId) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onCreatePanelView'");
+		return null;
 	}
 	@Override
 	public boolean onPreparePanel(int featureId, View view, Menu menu) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onPreparePanel'");
+		if (featureId == Window.FEATURE_OPTIONS_PANEL && menu != null) {
+			return onPrepareOptionsMenu(menu) && menu.hasVisibleItems();
+		}
+		return true;
 	}
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onMenuItemSelected'");
+		return false;
 	}
 	@Override
 	public void onPanelClosed(int featureId, Menu menu) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onPanelClosed'");
 	}
 
 	@Override
 	public boolean onMenuOpened(int featureId, Menu menu) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onMenuOpened'");
+		return true;
+	}
+
+	/* AOSP's overridable dialog-menu hooks (oreo-release Dialog: both
+	 * return true by default); apps subclass Dialog and override these. */
+	public boolean onCreateOptionsMenu(Menu menu) {
+		return true;
+	}
+
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		return true;
 	}
 
 	protected void onCreate(Bundle savedInstanceState) {
@@ -213,6 +238,18 @@ public class Dialog implements Window.Callback, DialogInterface {
 
 	@Override
 	public void cancel() {
+		/* AOSP's cancel() dismisses with cancel = true, and the dialog's
+		 * handler then dispatches OnCancelListener.onCancel on the main
+		 * looper; a plain dismiss() never fires it. Post the callback
+		 * before dismiss()'s delayed close runs so cancel is seen first. */
+		if (onCancelListener != null) {
+			new Handler(Looper.getMainLooper()).post(new Runnable() {
+				@Override
+				public void run() {
+					onCancelListener.onCancel(Dialog.this);
+				}
+			});
+		}
 		dismiss();
 	}
 

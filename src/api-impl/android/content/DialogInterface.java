@@ -26,6 +26,10 @@ public interface DialogInterface {
 		void onShow(DialogInterface dialog);
 	}
 	public interface OnCancelListener {
+		/* The method apps implement (AOSP DialogInterface.OnCancelListener);
+		 * it was missing here, so a listener could not be invoked (or even
+		 * match the SDK signature). */
+		void onCancel(DialogInterface dialog);
 	}
 	public interface OnMultiChoiceClickListener {
 	}
