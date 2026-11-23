@@ -3803,13 +3803,50 @@ public class View implements Drawable.Callback {
 		background_tint_mode = tintMode;
 	}
 
-	public void setNextFocusLeftId(int id) {}
+	/* Next-focus ids (queue items 246, 247): AOSP stores them (default
+	 * NO_ID) and the public get… methods read them back; its own focus
+	 * search honours them. ATL's focus is GTK's (queue item 88's
+	 * finding) and the fork has no Android focus search at all, so these
+	 * ids steer nothing here — **gap: Android focus-search subsystem**.
+	 * They are still real API state (set from XML inflation and by
+	 * callers), and the fork had the setters dropping it while the AOSP
+	 * getters were not even declared. */
+	private int atl_next_focus_left_id = NO_ID;
+	private int atl_next_focus_right_id = NO_ID;
+	private int atl_next_focus_up_id = NO_ID;
+	private int atl_next_focus_down_id = NO_ID;
 
-	public void setNextFocusRightId(int id) {}
+	public void setNextFocusLeftId(int id) {
+		atl_next_focus_left_id = id;
+	}
 
-	public void setNextFocusDownId(int id) {}
+	public int getNextFocusLeftId() {
+		return atl_next_focus_left_id;
+	}
 
-	public void setNextFocusUpId(int id) {}
+	public void setNextFocusRightId(int id) {
+		atl_next_focus_right_id = id;
+	}
+
+	public int getNextFocusRightId() {
+		return atl_next_focus_right_id;
+	}
+
+	public void setNextFocusDownId(int id) {
+		atl_next_focus_down_id = id;
+	}
+
+	public int getNextFocusDownId() {
+		return atl_next_focus_down_id;
+	}
+
+	public void setNextFocusUpId(int id) {
+		atl_next_focus_up_id = id;
+	}
+
+	public int getNextFocusUpId() {
+		return atl_next_focus_up_id;
+	}
 
 	public void setHasTransientState(boolean hasTransientState) {
 		/* AOSP reference-counts the flag and clamps it at 0 (an unpaired
