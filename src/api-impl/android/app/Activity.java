@@ -140,7 +140,14 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public String getCallingPackage() {
-		return null; // [from api reference] Note: if the calling activity is not expecting a result (that is it did not use the startActivityForResult(Intent, int) form that includes a request code), then the calling package will be null.
+		/* AOSP asks the activity task manager for the package of the
+		 * activity that started this one *for a result*; null when it was
+		 * not started with startActivityForResult (the documented case,
+		 * queue item 240). ATL launches activities in-process and keeps
+		 * that caller as `resultActivity` (set in startActivityForResult
+		 * above, used by getCallingActivity and setResult), so the
+		 * caller's package is that activity's package. */
+		return resultActivity == null ? null : resultActivity.getPackageName();
 	}
 
 	public ComponentName getComponentName() {
