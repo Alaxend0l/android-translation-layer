@@ -763,7 +763,12 @@ public class View implements Drawable.Callback {
 		 *            context menu should be shown. This information will vary
 		 *            depending on the class of v.
 		 */
-		//void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo);
+		/* Declared with AOSP's shape (queue item 244) — the parameter type
+		 * here is ContextMenu.ContextMenuInfo, where AOSP names its own
+		 * View.ContextMenuInfo (a class the fork does not declare because
+		 * it has no context-menu machinery to fill one; see
+		 * setOnCreateContextMenuListener below). */
+		void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo);
 	}
 
 	public interface OnDragListener {}
@@ -2607,7 +2612,22 @@ public class View implements Drawable.Callback {
 		return willNotDraw;
 	}
 
-	public void setOnCreateContextMenuListener(View.OnCreateContextMenuListener l) {}
+	/* Context-menu listener (queue item 244): AOSP stores it and makes
+	 * the view long-clickable, because a long press is how Android opens
+	 * the menu; the fork did neither. Stored with the long-clickable
+	 * side kept exactly as AOSP has it, so the view really does take the
+	 * long press. **Gap: context-menu panel machinery** — the fork has
+	 * no showContextMenu/createContextMenu path (no panel manager, and
+	 * Window.hasFeature answers no to everything, queue item 208's
+	 * finding), so nothing can hand the listener a ContextMenu to fill
+	 * in yet; performLongClick below only reaches a long-click listener. */
+	private OnCreateContextMenuListener on_create_context_menu_listener = null;
+
+	public void setOnCreateContextMenuListener(View.OnCreateContextMenuListener l) {
+		if (!isLongClickable())
+			setLongClickable(true);
+		on_create_context_menu_listener = l;
+	}
 
 	protected void onAnimationStart() {}
 

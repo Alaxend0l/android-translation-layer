@@ -20,6 +20,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Slog;
+import android.view.ContextMenu;
 import android.view.ContextThemeWrapper;
 import android.view.Display;
 import android.view.KeyEvent;
@@ -45,7 +46,7 @@ import java.util.Map;
  * does), so Activity declares it directly to get the AOSP
  * onKeyDown/onKeyUp/onKeyLongPress/onKeyMultiple defaults used by
  * dispatchKeyEvent. */
-public class Activity extends ContextThemeWrapper implements Window.Callback, LayoutInflater.Factory2, KeyEvent.Callback {
+public class Activity extends ContextThemeWrapper implements Window.Callback, LayoutInflater.Factory2, KeyEvent.Callback, View.OnCreateContextMenuListener {
 	private final static String TAG = "Activity";
 
 	public static final int RESULT_CANCELED = 0;
@@ -748,7 +749,26 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 	public Uri getReferrer() { return null; }
 	public void setDefaultKeyMode(int flag) {}
-	public void registerForContextMenu(View view) {}
+	public void registerForContextMenu(View view) {
+		/* AOSP's body is literally this: the activity becomes the view's
+		 * context-menu listener (unregister clears it) (queue item 251).
+		 * The view now stores that listener (queue item 244); nothing
+		 * calls it yet — context-menu panel machinery is a gap (see
+		 * View.setOnCreateContextMenuListener). */
+		view.setOnCreateContextMenuListener(this);
+	}
+
+	public void unregisterForContextMenu(View view) {
+		view.setOnCreateContextMenuListener(null);
+	}
+
+	/* AOSP's Activity implements OnCreateContextMenuListener and its own
+	 * implementation is empty — apps override it to fill the menu. Same
+	 * here; with no context-menu machinery in the fork this is never
+	 * called (queue items 244, 251). */
+	@Override
+	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {}
+
 	public native boolean isInMultiWindowMode();
 
 	// we never put an activity into picture-in-picture, so this is always false
