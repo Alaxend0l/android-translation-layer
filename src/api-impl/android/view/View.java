@@ -4163,7 +4163,18 @@ public class View implements Drawable.Callback {
 		return atl_layer_type;
 	}
 
-	public boolean isAccessibilityFocused() { return false; }
+	public boolean isAccessibilityFocused() {
+		/* AOSP reads PFLAG2_ACCESSIBILITY_FOCUSED, set by the
+		 * accessibility-focus machinery that walks a node when a screen
+		 * reader moves focus (queue item 242). ATL has no accessibility
+		 * node pipeline at all (gap recorded at setAccessibilityPaneTitle
+		 * and announceForAccessibility), so nothing can ever set that
+		 * flag and false is the state, not dropped state. GTK's own
+		 * "accessible" focus is not Android's accessibility focus —
+		 * answering it here would report keyboard focus to a caller
+		 * asking about a screen reader. */
+		return false;
+	}
 
 	/* queue item 222: see setCameraDistance above (no RenderNode, no 3-D
 	 * compositing in ATL). */
