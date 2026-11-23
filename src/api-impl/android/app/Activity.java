@@ -720,9 +720,20 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 
 	public native boolean isTaskRoot();
 
-	public void postponeEnterTransition() {}
+	public void postponeEnterTransition() {
+		/* AOSP defers the enter transition through the activity's
+		 * transition state (mActivityTransitionState), so the app can
+		 * load content before the animation runs (queue items 243, 248).
+		 * ATL has no activity transition state at all — activities are
+		 * swapped in-process with nothing to defer or start (same gap as
+		 * overridePendingTransition and the getSharedElement* stubs) —
+		 * so there is no state machine to hold the transition open. */
+	}
 
-	public void startPostponedEnterTransition() {}
+	public void startPostponedEnterTransition() {
+		/* queue items 243, 248: releases a postponement that could never
+		 * have been taken; see postponeEnterTransition above. */
+	}
 
 	public boolean isChild() {
 		/* AOSP: mParent != null, i.e. this is an embedded (child)
@@ -1004,7 +1015,22 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return false;
 	}
 
-	public void setExitSharedElementCallback(SharedElementCallback callback) {}
+	/* Shared-element transition callbacks (queue items 249, 250): AOSP's
+	 * body is a store (null becomes its inert NULL_CALLBACK singleton)
+	 * into the fields its activity-transition state machine reads back
+	 * when a scene transition runs. ATL has no activity transitions (gap
+	 * recorded at postponeEnterTransition and overridePendingTransition),
+	 * so nothing reads these back; the fork's SharedElementCallback is an
+	 * empty stand-in class with no NULL_CALLBACK to substitute, and
+	 * substituting null is the same for anything that could consume it. */
+	private SharedElementCallback atl_exit_shared_element_callback = null;
+	private SharedElementCallback atl_enter_shared_element_callback = null;
 
-	public void setEnterSharedElementCallback(SharedElementCallback callback) {}
+	public void setExitSharedElementCallback(SharedElementCallback callback) {
+		atl_exit_shared_element_callback = callback;
+	}
+
+	public void setEnterSharedElementCallback(SharedElementCallback callback) {
+		atl_enter_shared_element_callback = callback;
+	}
 }
