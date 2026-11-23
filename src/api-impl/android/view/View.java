@@ -4350,7 +4350,32 @@ public class View implements Drawable.Callback {
 		return insets;
 	}
 
-	public void setAccessibilityTraversalBefore(int id) {}
+	/* Accessibility traversal order (queue item 298): AOSP stores the
+	 * ids (default NO_ID) and its a11y node provider orders the
+	 * accessibility traversal by them; AOSP's setter also fires an
+	 * accessibility state-changed event. The ids are stored here, and
+	 * AOSP's sibling setter/getter pair is completed — but nothing in
+	 * ATL builds accessibility nodes, so the values are state with no
+	 * consumer. **Gap: accessibility node pipeline in ATL.** */
+	private int atl_accessibility_traversal_before_id = NO_ID;
+
+	private int atl_accessibility_traversal_after_id = NO_ID;
+
+	public void setAccessibilityTraversalBefore(int id) {
+		atl_accessibility_traversal_before_id = id;
+	}
+
+	public int getAccessibilityTraversalBefore() {
+		return atl_accessibility_traversal_before_id;
+	}
+
+	public void setAccessibilityTraversalAfter(int id) {
+		atl_accessibility_traversal_after_id = id;
+	}
+
+	public int getAccessibilityTraversalAfter() {
+		return atl_accessibility_traversal_after_id;
+	}
 
 	public int getLayerType() {
 		return atl_layer_type;
