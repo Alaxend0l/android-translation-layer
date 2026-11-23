@@ -3182,7 +3182,12 @@ public class View implements Drawable.Callback {
 		atl_pointer_icon = pointerIcon;
 	}
 
-	public IBinder getApplicationWindowToken() { return null; }
+	/* Same window token as getWindowToken (queue item 150): AOSP answers
+	 * attachInfo.mToken for both on phones (per-window == per-app in
+	 * ATL, one window per app). */
+	public IBinder getApplicationWindowToken() {
+		return getWindowToken();
+	}
 
 	public int getVerticalFadingEdgeLength() { return 0; }
 	public int getVerticalScrollbarWidth() { return 0; }
@@ -3282,7 +3287,24 @@ public class View implements Drawable.Callback {
 
 	public void setKeyboardNavigationCluster(boolean isCluster) {}
 
-	public AutofillId getAutofillId() { return new AutofillId(); }
+	/* Autofill ids (queue item 151): the old getter built a *fresh*
+	 * AutofillId on every call, so identity/equality comparisons apps
+	 * and frameworks do (setAutofillId/getAutofillId round-trips,
+	 * autofill-target lookups) always failed. AOSP lazily assigns a
+	 * unique id per view; ATL has no autofill service, but the id
+	 * object is still real API state. */
+	private static int next_autofill_id = 1;
+	private AutofillId autofill_id = null;
+
+	public AutofillId getAutofillId() {
+		if (autofill_id == null)
+			autofill_id = new AutofillId(next_autofill_id++);
+		return autofill_id;
+	}
+
+	public void setAutofillId(AutofillId autofillId) {
+		autofill_id = autofillId;
+	}
 
 	public AccessibilityDelegate getAccessibilityDelegate() { return accessibilityDelegate; }
 
