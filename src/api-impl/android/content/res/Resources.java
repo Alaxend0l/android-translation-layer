@@ -1616,6 +1616,13 @@ public class Resources {
 	 * @return Theme The newly created Theme container.
 	 */
 	public final Theme newTheme() {
+		/* AOSP: `Theme t = new Theme(); t.mAssets = mAssets; t.mValue =
+		 * mValue; return t;` — a fresh empty theme container bound to
+		 * these Resources, which is what the fork's Theme() does (it
+		 * copies mAssets and allocates a native theme through
+		 * mAssets.createTheme()). Flagged as "constant instead of state"
+		 * (queue item 201); it is not: a new object per call is AOSP's
+		 * documented behaviour. */
 		return new Theme();
 	}
 

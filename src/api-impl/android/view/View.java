@@ -1493,7 +1493,13 @@ public class View implements Drawable.Callback {
 		return false;
 	}
 	public final boolean requestFocusFromTouch() {
-		// TODO: if (isInTouchMode()) leave touch mode
+		/* AOSP leaves touch mode first (ViewRootImpl.ensureVisible +
+		 * clearGlobalFocusCount) and then takes focus with FOCUS_DOWN.
+		 * ATL has no touch-mode state to leave: isInTouchMode() is false
+		 * here because focus is owned by GTK (queue item 88's finding),
+		 * which is exactly the branch AOSP takes when not in touch mode,
+		 * so the fork's requestFocus(FOCUS_DOWN) is the faithful path
+		 * (queue item 205's TODO resolved, not left dangling). */
 		return requestFocus(View.FOCUS_DOWN);
 	}
 	private native void nativeRequestFocus(long widget, int direction);
@@ -2437,6 +2443,14 @@ public class View implements Drawable.Callback {
 		return onGenericMotionEvent(event);
 	}
 
+	/* Scrollbars (queue item 202): AOSP's returns true when it started a
+	 * scrollbar fade and callers branch on it — the fork's own
+	 * AbsListView.trackMotionScroll (line ~4114) does
+	 * `if (!awakenScrollBars()) invalidate();`. ATL draws no scrollbars of
+	 * its own (the GTK scroll widget is the visible affordance), so there
+	 * is nothing to wake: false, i.e. "no fade started, you handle the
+	 * repaint", is the faithful answer and keeps the caller's fallback
+	 * running. Recorded with the scrollbar gap. */
 	protected boolean awakenScrollBars() { return false; }
 
 	protected native boolean native_getMatrix(long widget, long matrix);
@@ -3712,6 +3726,14 @@ public class View implements Drawable.Callback {
 	}
 
 	protected boolean onHoverEvent(MotionEvent event) {
+		/* AOSP's base implementation only uses the hover event for
+		 * accessibility hover enter/exit and returns false unless a
+		 * subclass (ViewGroup, AbsListView) consumes it; false is also
+		 * what it returns when the view is not hoverable. ATL has no
+		 * accessibility node pipeline for the hover part and GTK hover
+		 * MotionEvents are not fed to the view tree yet (gap recorded at
+		 * dispatchHoverEvent above), so false is the faithful base answer
+		 * (queue item 197: not a dropped-state case). */
 		return false;
 	}
 

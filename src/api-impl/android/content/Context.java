@@ -434,6 +434,28 @@ public abstract class Context {
 		return checkCallingOrSelfPermission(permission);
 	}
 
+	/* Component callbacks (queue items 198, 199): registering does nothing
+	 * here because there is nothing to dispatch to. AOSP's ContextImpl
+	 * keeps the list and the system calls onConfigurationChanged /
+	 * onLowMemory / onTrimMemory on it; in the fork the interface itself
+	 * is empty (`public interface ComponentCallbacks {}` - no
+	 * onConfigurationChanged, no onLowMemory), no Context keeps a
+	 * registration list, and no configuration or memory pressure source
+	 * exists in ATL to call either. **Gap: ComponentCallbacks contract**
+	 * (declare the three methods and dispatch them from whatever
+	 * configuration-change path ATL grows). Until then the empty
+	 * register/unregister are honest no-ops: a caller gets the AOSP
+	 * behaviour it would get from a process that never reconfigures. */
+	/* Component callbacks (queue items 198, 199): registration does nothing
+	 * because there is nothing to dispatch to. AOSP's ContextImpl keeps the
+	 * list and the system calls onConfigurationChanged/onLowMemory/
+	 * onTrimMemory on it; here the interface itself is empty
+	 * (`public interface ComponentCallbacks {}` — no methods), no Context
+	 * holds a registration list, and ATL has no reconfiguration or memory
+	 * pressure source to call. **Gap: ComponentCallbacks contract** — the
+	 * three methods and a dispatch from whatever configuration-change path
+	 * ATL grows. Until then these are honest no-ops, matching what a
+	 * process that never reconfigures would do. */
 	public void registerComponentCallbacks(ComponentCallbacks callbacks) {}
 
 	public void unregisterComponentCallbacks(ComponentCallbacks callbacks) {}
