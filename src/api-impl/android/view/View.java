@@ -2909,7 +2909,20 @@ public class View implements Drawable.Callback {
 		return getHeight();
 	}
 
-	public void setAccessibilityLiveRegion(int mode) {}
+	/* Live-region state (queue item 190): AOSP keeps the mode in the view's
+	 * flags and getAccessibilityLiveRegion() reads it back; the setter was
+	 * empty and the getter constant 0, and the fork lacked the constants.
+	 * ATL has no accessibility-node pipeline to consume it (a separate gap),
+	 * but the value round-trips now. */
+	public static final int ACCESSIBILITY_LIVE_REGION_NONE = 0x00000000;
+	public static final int ACCESSIBILITY_LIVE_REGION_POLITE = 0x00000001;
+	public static final int ACCESSIBILITY_LIVE_REGION_ASSERTIVE = 0x00000002;
+
+	private int atl_accessibility_live_region = ACCESSIBILITY_LIVE_REGION_NONE;
+
+	public void setAccessibilityLiveRegion(int mode) {
+		atl_accessibility_live_region = mode;
+	}
 
 	public int getMeasuredWidthAndState() {
 		return measuredWidth;
@@ -3104,7 +3117,36 @@ public class View implements Drawable.Callback {
 		return system_ui_visibility;
 	}
 
-	public void setScrollIndicators(int indicators, int mask) {}
+	/* Scroll indicator state (queue item 192). AOSP keeps the indicator
+	 * bits (its own flag encoding, public values TOP=1, BOTTOM=2, LEFT=4,
+	 * RIGHT=8, START=16, END=32); the setter dropped them and the fork had
+	 * neither the getter nor the constants. ATL draws no scroll indicators
+	 * of its own (GTK scrollbars are the visible affordance), but scroll
+	 * containers set and read these bits, so they now round-trip. */
+	public static final int SCROLL_INDICATOR_TOP = 1 << 0;
+	public static final int SCROLL_INDICATOR_BOTTOM = 1 << 1;
+	public static final int SCROLL_INDICATOR_LEFT = 1 << 2;
+	public static final int SCROLL_INDICATOR_RIGHT = 1 << 3;
+	public static final int SCROLL_INDICATOR_START = 1 << 4;
+	public static final int SCROLL_INDICATOR_END = 1 << 5;
+
+	private static final int SCROLL_INDICATORS_ALL =
+			SCROLL_INDICATOR_TOP | SCROLL_INDICATOR_BOTTOM | SCROLL_INDICATOR_LEFT
+			| SCROLL_INDICATOR_RIGHT | SCROLL_INDICATOR_START | SCROLL_INDICATOR_END;
+
+	private int atl_scroll_indicators = 0;
+
+	public int getScrollIndicators() {
+		return atl_scroll_indicators;
+	}
+
+	public void setScrollIndicators(int indicators) {
+		setScrollIndicators(indicators, SCROLL_INDICATORS_ALL);
+	}
+
+	public void setScrollIndicators(int indicators, int mask) {
+		atl_scroll_indicators = (indicators & mask) | (atl_scroll_indicators & ~mask);
+	}
 
 	public void setLayoutDirection(int layoutDirection) {
 		/* Stored for apps that read their own setting back; ATL's layout
@@ -3680,7 +3722,9 @@ public class View implements Drawable.Callback {
 
 	public void setVerticalFadingEdgeEnabled(boolean verticalFadingEdgeEnabled) {}
 
-	public int getAccessibilityLiveRegion() { return 0; }
+	public int getAccessibilityLiveRegion() {
+		return atl_accessibility_live_region;
+	}
 
 	public void setLabelFor(int id) {}
 
