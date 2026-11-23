@@ -91,7 +91,6 @@ public class Dialog implements Window.Callback, DialogInterface {
 	}
 
 	public void show() {
-		System.out.println("showing the Dialog " + this);
 		Runnable action = new Runnable() {
 			@Override
 			public void run() {
@@ -206,7 +205,8 @@ public class Dialog implements Window.Callback, DialogInterface {
 	}
 
 	protected void onCreate(Bundle savedInstanceState) {
-		System.out.println("- onCreate - Dialog!");
+		/* Empty, as in AOSP (oreo-release Dialog.onCreate) - apps
+		 * override this. */
 	}
 
 	public void hide() {
@@ -228,6 +228,13 @@ public class Dialog implements Window.Callback, DialogInterface {
 	public void setDismissMessage(Message msg) {}
 
 	public boolean onTouchEvent(MotionEvent event) {
+		/* AOSP's default (oreo-release Dialog.onTouchEvent) cancels the
+		 * dialog when mWindow.shouldCloseOnTouch() says the touch was outside
+		 * the window bounds, and returns false otherwise. This fork has no
+		 * Window.shouldCloseOnTouch, and its native window never dispatches
+		 * Window.Callback.onTouchEvent (touches go to the view tree), so this
+		 * is unreachable; false - "not consumed" - is what AOSP answers when
+		 * the dialog is not cancelable or the touch is inside. */
 		return false;
 	}
 
