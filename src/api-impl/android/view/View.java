@@ -2580,8 +2580,28 @@ public class View implements Drawable.Callback {
 		cancelLongPress();
 	}
 
-	public ViewOutlineProvider getOutlineProvider() { return new ViewOutlineProvider(); }
-	public void setOutlineProvider(ViewOutlineProvider provider) {}
+	/* Outline provider (queue item 130): AOSP default is BACKGROUND, and
+	 * the old getter invented a fresh object on every call (so provider
+	 * identity comparisons failed). State is now stored with the AOSP
+	 * default. No render-node outline is drawn in ATL yet (that plus
+	 * clipToOutline consumption is the same rendering follow-up), so
+	 * invalidateOutline (queue item 120) has nothing to recompute: it
+	 * stays a documented no-op rather than an unexplained empty body. */
+	private ViewOutlineProvider outline_provider = ViewOutlineProvider.BACKGROUND;
+
+	public ViewOutlineProvider getOutlineProvider() {
+		return outline_provider;
+	}
+	public void setOutlineProvider(ViewOutlineProvider provider) {
+		outline_provider = provider;
+	}
+
+	public void invalidateOutline() {
+		/* AOSP recomputes the render-node outline from
+		 * getOutlineProvider(); ATL draws no outlines and no clip
+		 * consumes them yet, so there is nothing to recompute. Kept as
+		 * an explicit no-op: the queue item 120 finding. */
+	}
 
 	public void setStateListAnimator(StateListAnimator stateListAnimator) {
 		if (stateListAnimator != null && stateListAnimator.enabledAnimator != null) {
@@ -2721,8 +2741,6 @@ public class View implements Drawable.Callback {
 	}
 
 	public void setAccessibilityLiveRegion(int mode) {}
-
-	public void invalidateOutline() {}
 
 	public int getMeasuredWidthAndState() {
 		return measuredWidth;
@@ -2986,7 +3004,25 @@ public class View implements Drawable.Callback {
 		return false;
 	}
 
-	public void setClipBounds(Rect clipBounds) {}
+	/* Clip state (queue items 124, 129): AOSP clips drawing to these.
+	 * The gsk draw path does not consume them yet (same rendering
+	 * follow-up as the transform state), but apps read these back
+	 * (getClipBounds) and branch on them, so the state is real API
+	 * state now. AOSP defaults: clipToOutline false, clipBounds null. */
+	private Rect atl_clip_bounds = null;
+	private boolean atl_clip_to_outline = false;
+
+	public void setClipBounds(Rect clipBounds) {
+		atl_clip_bounds = clipBounds;
+	}
+
+	public Rect getClipBounds() {
+		return atl_clip_bounds;
+	}
+
+	public void setClipToOutline(boolean clipToOutline) {
+		atl_clip_to_outline = clipToOutline;
+	}
 
 	public boolean getClipToOutline() { return false; }
 
