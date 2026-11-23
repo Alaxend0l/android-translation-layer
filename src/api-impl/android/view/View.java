@@ -2233,7 +2233,9 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	public float getRotation() { return 0.f; }
+	public float getRotation() {
+		return rotation;
+	}
 
 	public void bringToFront() {}
 
@@ -2804,12 +2806,31 @@ public class View implements Drawable.Callback {
 
 	public native void getWindowVisibleDisplayFrame(Rect rect);
 
-	public void setRotation(float rotation) {}
-	public void setRotationX(float deg) {}
-	public void setRotationY(float deg) {}
+	/* Same render-node transform family as scaleX/pivotX above (queue
+	 * items 121-123): ROTATION Property (see the Property objects)
+	 * animates through these, and the getters were constants. State is
+	 * stored AOSP-style; the gsk draw path still ignores it on screen
+	 * (same rendering follow-up as scale/pivot). */
+	private float rotation = 0.f;
+	private float rotationX = 0.f;
+	private float rotationY = 0.f;
 
-	public float getRotationX() { return 0.f; }
-	public float getRotationY() { return 0.f; }
+	public void setRotation(float rotation) {
+		this.rotation = rotation;
+	}
+	public void setRotationX(float deg) {
+		rotationX = deg;
+	}
+	public void setRotationY(float deg) {
+		rotationY = deg;
+	}
+
+	public float getRotationX() {
+		return rotationX;
+	}
+	public float getRotationY() {
+		return rotationY;
+	}
 
 	/* AOSP render-node transform properties (queue items 109-112). The
 	 * setters used to be empty and the getters constants, so View.SCALE_X
