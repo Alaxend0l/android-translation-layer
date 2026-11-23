@@ -3090,17 +3090,23 @@ public final class MotionEvent extends InputEvent {
 			msg.append(", id[").append(i).append("]=").append(getPointerId(i));
 			msg.append(", x[").append(i).append("]=").append(getX(i));
 			msg.append(", y[").append(i).append("]=").append(getY(i));
-			msg.append(", toolType[").append(i).append("]=").append(/*toolTypeToString(getToolType(i))*/ "FIXME");
+			/* Queue item 365: these fields used to print the literal
+			 * "FIXME". AOSP's toString() (core/java/android/view/
+			 * MotionEvent.java, android16-release) prints them through
+			 * the same helpers, which all exist here; the fork's field
+			 * list stays the older AOSP shape (no actionButton/
+			 * classification: those APIs are not here). */
+			msg.append(", toolType[").append(i).append("]=").append(toolTypeToString(getToolType(i)));
 		}
 
-		msg.append(", buttonState=").append(/*MotionEvent.buttonStateToString(getButtonState())*/ "FIXME");
-		msg.append(", metaState=").append(/*KeyEvent.metaStateToString(getMetaState())*/ "FIXME");
-		msg.append(", flags=0x").append(/*Integer.toHexString(getFlags())*/ "FIXME");
-		msg.append(", edgeFlags=0x").append(/*Integer.toHexString(getEdgeFlags())*/ "FIXME");
+		msg.append(", buttonState=").append(buttonStateToString(getButtonState()));
+		msg.append(", metaState=").append(KeyEvent.metaStateToString(getMetaState()));
+		msg.append(", flags=0x").append(Integer.toHexString(getFlags()));
+		msg.append(", edgeFlags=0x").append(Integer.toHexString(getEdgeFlags()));
 		msg.append(", pointerCount=").append(pointerCount);
-		msg.append(", historySize=").append(/*getHistorySize()*/ "FIXME");
+		msg.append(", historySize=").append(getHistorySize());
 		msg.append(", eventTime=").append(getEventTime());
-		msg.append(", downTime=").append(/*getDownTime()*/ "FIXME");
+		msg.append(", downTime=").append(getDownTime());
 		msg.append(", deviceId=").append(getDeviceId());
 		msg.append(", source=0x").append(Integer.toHexString(getSource()));
 		msg.append(" }");
