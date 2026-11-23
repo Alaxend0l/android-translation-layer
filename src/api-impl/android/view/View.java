@@ -3297,7 +3297,24 @@ public class View implements Drawable.Callback {
 
 	private String atl_transition_name = null;
 
-	public WindowId getWindowId() { return null; }
+	private static final WindowId atl_window_id = new WindowId();
+
+	public WindowId getWindowId() {
+		/* AOSP returns the id of the window the view is attached to, null
+		 * while detached (apps compare it to test attachment and to group
+		 * views by window). ATL has one window per process, like the one
+		 * windowToken (see getWindowToken), so the id is process-wide; it
+		 * is only handed out once this view or an ancestor has been
+		 * laid out by the window — the same attach test as the token.
+		 * (queue item 210) */
+		View v = this;
+		while (v != null) {
+			if (v.windowTokenAttached)
+				return atl_window_id;
+			v = v.parent instanceof View ? (View) v.parent : null;
+		}
+		return null;
+	}
 
 	/* isInLayout (queue item 185): the FIXME is resolved by using the flag
 	 * the fork already maintains — layoutInternal() sets in_layout for the
