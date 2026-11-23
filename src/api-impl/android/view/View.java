@@ -2599,7 +2599,13 @@ public class View implements Drawable.Callback {
 		atl_save_enabled = enabled;
 	}
 
-	public boolean willNotDraw() { return false; }
+	public boolean willNotDraw() {
+		/* AOSP reads the WILL_NOT_DRAW view flag back (setWillNotDraw
+		 * sets it; ViewGroup subclasses and androidx custom containers
+		 * query it to skip work). The fork already stores the flag in
+		 * setWillNotDraw — only the getter ignored it (queue item 231). */
+		return willNotDraw;
+	}
 
 	public void setOnCreateContextMenuListener(View.OnCreateContextMenuListener l) {}
 
@@ -2735,9 +2741,17 @@ public class View implements Drawable.Callback {
 		postInvalidate();
 	}
 
+	/* Padding-is-relative flag (queue item 226): AOSP sets it in
+	 * setPaddingRelative and isPaddingRelative() reads it back (padding
+	 * accessors then treat left/right as start/end). The fork mapped
+	 * start/end onto left/right — fine for its always-LTR view — but
+	 * dropped the flag, so the pair never round-tripped. */
+	private boolean atl_padding_relative = false;
+
 	public void setPaddingRelative(int start, int top, int end, int bottom) {
 		// This View is always LTR (getLayoutDirection() returns LAYOUT_DIRECTION_LTR),
 		// so start maps to left and end maps to right.
+		atl_padding_relative = true;
 		setPadding(start, top, end, bottom);
 	}
 
@@ -2892,7 +2906,10 @@ public class View implements Drawable.Callback {
 		 * an explicit no-op: the queue item 120 finding. */
 	}
 
+	private StateListAnimator atl_state_list_animator = null;
+
 	public void setStateListAnimator(StateListAnimator stateListAnimator) {
+		atl_state_list_animator = stateListAnimator;
 		if (stateListAnimator != null && stateListAnimator.enabledAnimator != null) {
 			stateListAnimator.enabledAnimator.setTarget(this);
 			stateListAnimator.enabledAnimator.start();
@@ -2923,7 +2940,9 @@ public class View implements Drawable.Callback {
 
 	public boolean canResolveLayoutDirection() { return true; }
 
-	public boolean isPaddingRelative() { return false; }
+	public boolean isPaddingRelative() {
+		return atl_padding_relative;
+	}
 
 	/* Foreground drawable (queue item 181): AOSP stores it (drawn over the
 	 * content, gravity from setForegroundGravity below); the setter dropped
@@ -3162,7 +3181,15 @@ public class View implements Drawable.Callback {
 
 	public void setHapticFeedbackEnabled(boolean hapticFeedbackEnabled) {}
 
-	public StateListAnimator getStateListAnimator() { return null; }
+	public StateListAnimator getStateListAnimator() {
+		/* AOSP keeps the animator set here (or loaded from
+		 * android:stateListAnimator at inflation, which goes through
+		 * setStateListAnimator below) and reads it back; the fork
+		 * applied the animator but dropped the reference, so
+		 * getStateListAnimator() was null even right after inflation
+		 * (queue item 236). */
+		return atl_state_list_animator;
+	}
 
 	public void requestFitSystemWindows() {}
 
@@ -3924,7 +3951,20 @@ public class View implements Drawable.Callback {
 			                                + "attribute defined on view " + mHostView.getClass() + idText);
 		}
 	}
-	public void setForceDarkAllowed(boolean forceDark) {}
+	/* Force-dark flag (queue item 225): AOSP stores it (and
+	 * getForceDarkAllowed reads it back) to let a view opt out of the
+	 * system's forced-dark inversion. ATL applies no force-dark pass at
+	 * all, so the flag gates nothing, but androidx (ViewCompat) sets and
+	 * reads it. */
+	private boolean atl_force_dark_allowed = true;
+
+	public void setForceDarkAllowed(boolean forceDark) {
+		atl_force_dark_allowed = forceDark;
+	}
+
+	public boolean getForceDarkAllowed() {
+		return atl_force_dark_allowed;
+	}
 	/* Insets animation callback state (queue item 144): stored and read
 	 * back; ATL has no window insets animations (no system bars to
 	 * animate), so nothing calls the callback — the API state round-
@@ -3938,8 +3978,20 @@ public class View implements Drawable.Callback {
 	public android.view.WindowInsetsAnimation.Callback getWindowInsetsAnimationCallback() {
 		return insets_animation_callback;
 	}
-	public void setViewTranslationCallback(ViewTranslationCallback callback) {}
-	public void clearViewTranslationCallback() {}
+	/* View translation callback (queue items 228, 229): AOSP keeps one
+	 * callback (hidden API 33) that gets told about text-translation
+	 * offsets. ATL has no translation service integration to fire it,
+	 * but the setters' contract is storage and clear, so store it; that
+	 * is all AOSP's setter guarantees in isolation. */
+	private ViewTranslationCallback atl_view_translation_callback = null;
+
+	public void setViewTranslationCallback(ViewTranslationCallback callback) {
+		atl_view_translation_callback = callback;
+	}
+
+	public void clearViewTranslationCallback() {
+		atl_view_translation_callback = null;
+	}
 	/* View-local <-> window-global matrix mapping (queue item 172). AOSP
 	 * walks the parent chain composing the scroll offsets and each view's
 	 * position, then its own transform matrix. The fork did nothing, so
