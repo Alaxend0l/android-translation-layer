@@ -164,9 +164,7 @@ public class Dialog implements Window.Callback, DialogInterface {
 	}
 
 	public class Builder {
-		public Builder(Context context) {
-			System.out.println("making a Dialog$Builder");
-		}
+		public Builder(Context context) {}
 	}
 
 	@Override
@@ -210,7 +208,6 @@ public class Dialog implements Window.Callback, DialogInterface {
 	}
 
 	public void hide() {
-		System.out.println("hiding the Dialog " + this);
 		nativeClose(nativePtr);
 	}
 
