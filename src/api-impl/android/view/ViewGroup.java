@@ -343,7 +343,26 @@ public class ViewGroup extends View implements ViewParent, ViewManager {
 	}
 
 	public void bringChildToFront(View child) {
-		// TODO: actually implement this (might make sense to implement it in the subclasses instead), when applicable
+		/* AOSP: move the child to the end of the drawing order, leaving it
+		 * in the group (no hierarchy-change callbacks). The fork had a
+		 * `// TODO` no-op here and an empty View.bringToFront(), so
+		 * "raise this view" did nothing at all (queue item 206).
+		 *
+		 * In ATL the drawing order *is* the native child order: the
+		 * wrapper snapshots its GTK child and GTK paints siblings in
+		 * order, which is why addViewInternal() computes a sorted index
+		 * before calling native_addView. So both halves are moved: the
+		 * Java list, and the native widget via native_addView. That call
+		 * walks GTK's siblings to reach `index` and appends when it runs
+		 * off the end, so index = children.size() appends the already
+		 * attached widget (one more than the fresh-add case, where the
+		 * child is not in GTK's list yet). */
+		if (child.parent != this)
+			return;
+		if (!children.remove(child))
+			return;
+		children.add(child);
+		native_addView(widget, child.widget, children.size(), child.getLayoutParams());
 	}
 
 	/**

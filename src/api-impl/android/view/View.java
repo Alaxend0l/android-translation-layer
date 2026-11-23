@@ -2328,7 +2328,16 @@ public class View implements Drawable.Callback {
 		return rotation;
 	}
 
-	public void bringToFront() {}
+	public void bringToFront() {
+		/* AOSP: defers to the parent ViewGroup's bringChildToFront, which
+		 * moves the child to the end of the drawing order. Both halves
+		 * were empty in the fork (View.bringToFront and a `// TODO`
+		 * ViewGroup.bringChildToFront), so calls like a popup raising
+		 * itself were silently ignored (queue item 206). Now ViewGroup
+		 * reorders the Java list and the native GTK child. */
+		if (parent instanceof ViewGroup)
+			((ViewGroup) parent).bringChildToFront(this);
+	}
 
 	public boolean isEnabled() { return atl_enabled; }
 	/* AOSP hasFocus: this view *or any descendant* holds focus. GTK's
