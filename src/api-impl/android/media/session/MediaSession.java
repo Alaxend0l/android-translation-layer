@@ -34,6 +34,10 @@ public class MediaSession {
 	 * CONNECTING=6). */
 	private static final int ATL_STATE_PLAYING = 3;
 	private static final int ATL_STATE_BUFFERING = 4;
+	/* androidx.media3's vendored legacy PlaybackStateCompat (apps on
+	 * androidx.media3.session publish through it) renumbers the states:
+	 * BUFFERING=6, ERROR=7, CONNECTING=8. */
+	private static final int ATL_STATE_BUFFERING_LEGACY = 6;
 
 	private Callback callback;
 	private PlaybackState lastPlaybackState;
@@ -78,6 +82,12 @@ public class MediaSession {
 
 	public void setPlaybackState(PlaybackState state) {
 		lastPlaybackState = state;
+		/* Witness line for the media-key investigation: media3's player
+		 * state machine as published to the session (in the app's own
+		 * state numbering, see the legacy renumbering note above). */
+		System.out.println("MediaSession.setPlaybackState: state=" + state.state
+			+ " position=" + state.position + " updateTime=" + state.updateTime
+			+ " queueItemId=" + state.activeQueueItemId);
 		String title = null;
 		String subTitle = null;
 		String artUrl = null;
@@ -130,12 +140,17 @@ public class MediaSession {
 				continue;
 			int keyCode = event.getKeyCode();
 			/* AOSP's Callback default expands KEYCODE_MEDIA_PLAY_PAUSE
-			 * using the session's playback state; do it per session so
-			 * the nested Callback (static in AOSP) needs no outer state. */
-			if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+			 * using the session's playback state, on key-down only; do it
+			 * per session so the nested Callback (static in AOSP) needs
+			 * no outer state. Note apps publish the state in their own
+			 * numbering: media3's vendored legacy PlaybackStateCompat
+			 * renumbers (BUFFERING=6, not the platform 4). */
+			if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+					&& event.getAction() == KeyEvent.ACTION_DOWN) {
 				boolean playing = session.lastPlaybackState != null
 					&& (session.lastPlaybackState.state == ATL_STATE_PLAYING
-					    || session.lastPlaybackState.state == ATL_STATE_BUFFERING);
+					    || session.lastPlaybackState.state == ATL_STATE_BUFFERING
+					    || session.lastPlaybackState.state == ATL_STATE_BUFFERING_LEGACY);
 				keyCode = playing ? KeyEvent.KEYCODE_MEDIA_PAUSE : KeyEvent.KEYCODE_MEDIA_PLAY;
 			}
 			Intent intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
