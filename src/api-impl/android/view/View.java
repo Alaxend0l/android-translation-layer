@@ -1939,7 +1939,14 @@ public class View implements Drawable.Callback {
 	}
 
 	public final int getMeasuredState() {
-		return 0;
+		/* AOSP's composition over the measured sizes' state bits (queue
+		 * item 156). ATL's measure path never sets
+		 * MEASURED_STATE_TOO_SMALL (GTK sizes widgets, it does not
+		 * report "wanted more space"), so the value is 0 today - but
+		 * this is now AOSP's formula over real fields rather than a
+		 * hardcoded 0, so it follows if the measure path records it. */
+		return (measuredWidth & MEASURED_STATE_MASK)
+				| ((measuredHeight & MEASURED_STATE_MASK) << MEASURED_HEIGHT_STATE_SHIFT);
 	}
 
 	public static int combineMeasuredStates(int curState, int newState) {
@@ -3197,7 +3204,26 @@ public class View implements Drawable.Callback {
 		return getWindowToken();
 	}
 
-	public int getVerticalFadingEdgeLength() { return 0; }
+	/* Fading-edge length (queue item 157): AOSP setFadingEdgeLength()
+	 * sets the same length for both axes and the getters return it; the
+	 * setter stored nothing and the getter was constant 0. ATL composites
+	 * no fading edges yet (a rendering gap), but scroll containers set
+	 * the length and read it back, so the state round-trips now;
+	 * getHorizontalFadingEdgeLength was absent from the fork. */
+	private int fading_edge_length = 0;
+
+	public void setFadingEdgeLength(int length) {
+		fading_edge_length = length;
+	}
+
+	public int getVerticalFadingEdgeLength() {
+		return fading_edge_length;
+	}
+
+	public int getHorizontalFadingEdgeLength() {
+		return fading_edge_length;
+	}
+
 	public int getVerticalScrollbarWidth() { return 0; }
 
 	public void saveAttributeDataForStyleable(Context ctxt, int[] styleable, AttributeSet attrs, TypedArray t, int defStyleAttr, int defStyleRes) {}
@@ -3446,8 +3472,6 @@ public class View implements Drawable.Callback {
 	public void destroyDrawingCache() {}
 
 	public void setVerticalFadingEdgeEnabled(boolean verticalFadingEdgeEnabled) {}
-
-	public void setFadingEdgeLength(int length) {}
 
 	public int getAccessibilityLiveRegion() { return 0; }
 
