@@ -2170,7 +2170,19 @@ public class View implements Drawable.Callback {
 		willNotDraw = value;
 	}
 
-	public void setScrollContainer(boolean isScrollContainer) {}
+	/* Scroll-container flag (queue item 200): AOSP stores it (from the
+	 * android:scrollable attribute) and isScrollContainer() reports it;
+	 * it drives scroll handling and accessibility focus-scroll. The
+	 * setter dropped it and the getter was not declared at all. */
+	private boolean atl_scroll_container = false;
+
+	public void setScrollContainer(boolean isScrollContainer) {
+		atl_scroll_container = isScrollContainer;
+	}
+
+	public boolean isScrollContainer() {
+		return atl_scroll_container;
+	}
 
 	public boolean removeCallbacks(Runnable action) {
 		getHandler().removeCallbacks(action);
@@ -2233,7 +2245,20 @@ public class View implements Drawable.Callback {
 		return true;
 	}
 
-	public void setSaveFromParentEnabled(boolean enabled) {}
+	/* Save-from-parent flag (queue item 194): AOSP stores it in the view's
+	 * flags and the hierarchy save/restore path skips a view whose parent
+	 * disabled it; isSaveFromParentEnabled() is AOSP's public getter,
+	 * absent from the fork. Nothing reads the flag here until the
+	 * saved-state pipeline exists (see saveHierarchyState above). */
+	private boolean atl_save_from_parent_enabled = true;
+
+	public void setSaveFromParentEnabled(boolean enabled) {
+		atl_save_from_parent_enabled = enabled;
+	}
+
+	public boolean isSaveFromParentEnabled() {
+		return atl_save_from_parent_enabled;
+	}
 
 	public void setTag(int key, Object tag) {
 		tags.put(key, tag);
@@ -3186,7 +3211,7 @@ public class View implements Drawable.Callback {
 		return background_tint_mode;
 	}
 
-	public String getTransitionName() { return null; }
+	private String atl_transition_name = null;
 
 	public WindowId getWindowId() { return null; }
 
@@ -3230,12 +3255,34 @@ public class View implements Drawable.Callback {
 
 	public void setOnDragListener(OnDragListener onDragListener) {}
 
-	public void setTransitionName(String transitionName) {}
+	public void setTransitionName(String transitionName) {
+		/* Transition name (queue item 203): AOSP keeps it (setTransitionName
+		 * is final there, getTransitionName() reads it back for the
+		 * activity-transition scene grab, which walks the hierarchy
+		 * looking for non-null names). ATL has no activity transition
+		 * machinery, but apps and androidx set and query it. */
+		atl_transition_name = transitionName;
+	}
 
-	public Animation getAnimation() { return null; }
+	public String getTransitionName() {
+		return atl_transition_name;
+	}
+
+	private ViewOverlay atl_overlay = null;
 
 	public ViewOverlay getOverlay() {
-		return new ViewOverlay();
+		/* AOSP keeps one overlay per view (lazily) and getOverlay()
+		 * returns that same object, so a caller can add drawables now and
+		 * query or clear them later. The fork built a new empty overlay
+		 * on every call, so `getOverlay().add(d)` was unobservable and a
+		 * later getOverlay().clear() cleared nothing (queue item 204).
+		 * The overlay's own drawables are not composited by ATL's gsk
+		 * path yet - rendering gap - but the object identity that
+		 * callers (and androidx) rely on is now right, matching
+		 * ViewGroup.getOverlay() below. */
+		if (atl_overlay == null)
+			atl_overlay = new ViewOverlay();
+		return atl_overlay;
 	}
 
 	public void cancelLongPress() {
@@ -3518,7 +3565,22 @@ public class View implements Drawable.Callback {
 	 * getter either). */
 	public void setAccessibilityPaneTitle(CharSequence paneTitle) {}
 
-	public void setAccessibilityHeading(boolean heading) {}
+	/* Accessibility heading flag (queue item 196): AOSP stores it and
+	 * reports it through the view's accessibility node
+	 * (isAccessibilityHeading() is AOSP's public getter, absent from the
+	 * fork). The setter dropped it; ATL has no accessibility node
+	 * pipeline to consume it (gap recorded at setAccessibilityPaneTitle),
+	 * but the flag is real API state and androidx's ViewCompat layer reads
+	 * it back. */
+	private boolean atl_accessibility_heading = false;
+
+	public void setAccessibilityHeading(boolean isHeading) {
+		atl_accessibility_heading = isHeading;
+	}
+
+	public boolean isAccessibilityHeading() {
+		return atl_accessibility_heading;
+	}
 
 	public WindowInsets computeSystemWindowInsets(WindowInsets insets, Rect contentInsets) { return insets; }
 
@@ -3758,7 +3820,21 @@ public class View implements Drawable.Callback {
 		return atl_accessibility_live_region;
 	}
 
-	public void setLabelFor(int id) {}
+	/* Label-for id (queue item 207): AOSP stores it (android:labelFor) and
+	 * getLabelFor() reads it back for the accessibility label relation.
+	 * The setter dropped it and the getter was not declared; ATL has no
+	 * accessibility node pipeline to consume the relation (gap recorded at
+	 * setAccessibilityPaneTitle), but the id is real API state and
+	 * androidx's ViewCompat.getLabelFor() reads it. */
+	private int atl_label_for = NO_ID;
+
+	public void setLabelFor(int id) {
+		atl_label_for = id;
+	}
+
+	public int getLabelFor() {
+		return atl_label_for;
+	}
 
 	/* Focus candidates (queue item 160): AOSP's base View returns a
 	 * list holding just itself when it is focusable in touch mode /
