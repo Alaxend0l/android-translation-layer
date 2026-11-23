@@ -933,7 +933,16 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean shouldShowRequestPermissionRationale(String permission) {
-		return true;
+		/* AOSP delegates to PackageManager, and that answers true only
+		 * after the user has *denied* the permission at least once
+		 * (queue item 230). ATL never asks the user: there is no runtime
+		 * permission dialog, checkPermission grants what the sandbox
+		 * provides, and requestPermissions above is a logged no-op — no
+		 * denial can ever have happened, so false is the faithful
+		 * answer. The old constant true pushed every permission-helper
+		 * app into its rationale-then-retry loop for a denial that
+		 * cannot exist. */
+		return false;
 	}
 
 	public ActionBar getActionBar() {
