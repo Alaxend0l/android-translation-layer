@@ -345,6 +345,14 @@ public class PopupMenu {
 
 		@Override
 		public int addIntentOptions(int groupId, int itemId, int order, ComponentName caller, Intent[] specifics, Intent intent, int flags, MenuItem[] outSpecificItems) {
+			/* AOSP's MenuBuilder.addIntentOptions resolves the options
+			 * through PackageManager.queryIntentActivityOptions and
+			 * returns the number of items it added (queue item 361).
+			 * ATL resolves no cross-app activities (that PackageManager
+			 * hook returns null - apps here are single-package, nothing
+			 * else can be offered), and AOSP's own code turns a null
+			 * list into N = 0, so 0 added items is AOSP's answer here,
+			 * not a shortcut. */
 			return 0;
 		}
 
