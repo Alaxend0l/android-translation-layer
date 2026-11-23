@@ -48,7 +48,12 @@ public class Dialog implements Window.Callback, DialogInterface {
 	}
 
 	public final boolean requestWindowFeature(int featureId) {
-		return false;
+		/* AOSP asks the dialog's Window (return mWindow.requestFeature(
+		 * featureId)); do the same, like Activity.requestWindowFeature.
+		 * Window.requestFeature answers no for every feature in this fork
+		 * (GTK-backed window, no PhoneWindow feature flags - queue item
+		 * 208), so the answer is unchanged; the point is one path. */
+		return getWindow().requestFeature(featureId);
 	}
 
 	public Context getContext() {
