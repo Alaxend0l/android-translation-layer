@@ -33,6 +33,9 @@ public final class Bitmap implements Parcelable {
 		}
 	}
 
+	/** Bitmap value for no known density (AOSP Bitmap.DENSITY_NONE). */
+	public static final int DENSITY_NONE = 0;
+
 	public enum CompressFormat {
 		JPEG,
 		PNG,
@@ -47,6 +50,9 @@ public final class Bitmap implements Parcelable {
 	private long texture;
 	private long snapshot;
 	private Config config = Config.ARGB_8888;
+	/* AOSP's Bitmap.mDensity starts at the default density; getDensity()
+	 * answers it, setDensity() stores it (oreo-release Bitmap.java:173-195). */
+	private int mDensity = DisplayMetrics.DENSITY_DEFAULT;
 	private boolean hasAlpha = true;
 	long bytes = 0; // used by native function AndroidBitmap_lockPixels()
 	private boolean recycled = false;
@@ -199,14 +205,26 @@ public final class Bitmap implements Parcelable {
 		getTexture();
 	}
 
-	public void setDensity(int density) {}
+	public void setDensity(int density) {
+		mDensity = density;
+	}
 
 	public int getScaledWidth(int density) {
-		return width;
+		return atlScaleFromDensity(width, mDensity, density);
 	}
 
 	public int getScaledHeight(int density) {
-		return height;
+		return atlScaleFromDensity(height, mDensity, density);
+	}
+
+	/* AOSP Bitmap.scaleFromDensity (oreo-release:1381): unchanged when either
+	 * density is DENSITY_NONE or they are equal, else scale by the ratio,
+	 * rounding. DENSITY_NONE constant added too (AOSP Bitmap's own). */
+	private static int atlScaleFromDensity(int size, int sdensity, int tdensity) {
+		if (sdensity == DENSITY_NONE || tdensity == DENSITY_NONE || sdensity == tdensity) {
+			return size;
+		}
+		return ((size * tdensity) + (sdensity >> 1)) / sdensity;
 	}
 
 	public boolean isRecycled() {
@@ -255,13 +273,23 @@ public final class Bitmap implements Parcelable {
 	}
 
 	public boolean compress(Bitmap.CompressFormat format, int quality, OutputStream stream) throws IOException {
+		/* AOSP's explicit pre-checks (oreo-release Bitmap.compress): null stream
+		 * is an NPE, quality outside 0..100 an IllegalArgumentException. */
+		if (stream == null) {
+			throw new NullPointerException();
+		}
+		if (quality < 0 || quality > 100) {
+			throw new IllegalArgumentException("quality must be 0..100");
+		}
 		if (format == CompressFormat.PNG) {
 			stream.write(native_save_to_png(getTexture()));
 			return true;
-		} else {
-			stream.write(("fixme Bitmap.compress " + format.name()).getBytes());
-			return false;
 		}
+		/* ATL's Cairo-backed bitmap layer has no JPEG/WEBP encoder, so this
+		 * answers what Android answers when encoding fails: false, and nothing
+		 * written. It used to write "fixme Bitmap.compress JPEG" into the
+		 * caller's stream, handing apps a corrupt file. */
+		return false;
 	}
 
 	public void setPixels(int[] pixels, int offset, int stride, int x, int y, int width, int height) {
@@ -282,7 +310,7 @@ public final class Bitmap implements Parcelable {
 	}
 
 	public int getDensity() {
-		return DisplayMetrics.DENSITY_DEFAULT;
+		return mDensity;
 	}
 
 	@SuppressWarnings("deprecation")
