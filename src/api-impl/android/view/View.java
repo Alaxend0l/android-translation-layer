@@ -2511,7 +2511,15 @@ public class View implements Drawable.Callback {
 		return nativeIsAttachedToWindow(widget);
 	}
 
-	public void requestApplyInsets() {}
+	/* AOSP asks the window to re-dispatch insets (queue item 128). ATL
+	 * has no system bar insets, but the re-dispatch itself is real:
+	 * listener/onApplyWindowInsets chains (dispatchApplyWindowInsets is
+	 * already implemented) get re-run against ATL's empty insets, which
+	 * is what an attached window with no bars would send. */
+	public void requestApplyInsets() {
+		if (windowTokenAttached)
+			dispatchApplyWindowInsets(new WindowInsets());
+	}
 
 	public View getRootView() {
 		View view = this;
@@ -2570,9 +2578,16 @@ public class View implements Drawable.Callback {
 	public int getMinimumHeight() { return minHeight; }
 	public int getMinimumWidth() { return minWidth; }
 
-	public boolean isNestedScrollingEnabled() { return false; }
+	/* AOSP default is true; state read back by isNestedScrollingEnabled
+	 * (queue item 126). ATL's View has no nested scroll machinery
+	 * itself, but scroll containers and gesture code gate on this
+	 * flag, and the old pair (empty setter, false getter) made every
+	 * container report nested scrolling off. */
+	private boolean nested_scrolling_enabled = true;
 
-	public void setClipToOutline(boolean clipToOutline) {}
+	public boolean isNestedScrollingEnabled() {
+		return nested_scrolling_enabled;
+	}
 
 	public boolean hasTransientState() { return false; }
 
@@ -2906,8 +2921,14 @@ public class View implements Drawable.Callback {
 
 	public void setTranslationZ(float translationZ) {}
 
+	/* AOSP returns the visibility flags currently applied to the
+	 * window; queue item 127 flagged the constant 0. ATL's window model
+	 * has no system bars, and setSystemUiVisibility on this view's
+	 * chain is the only thing that ever changes window-level UI state
+	 * (it drives fullscreen), so the view's own tracked flags are the
+	 * closest honest answer and 0 for untouched views either way. */
 	public int getWindowSystemUiVisibility() {
-		return 0;
+		return system_ui_visibility;
 	}
 
 	public void setScrollIndicators(int indicators, int mask) {}
@@ -2942,7 +2963,9 @@ public class View implements Drawable.Callback {
 
 	public void setVerticalScrollbarPosition(int position) {}
 
-	public void setNestedScrollingEnabled(boolean enabled) {}
+	public void setNestedScrollingEnabled(boolean enabled) {
+		nested_scrolling_enabled = enabled;
+	}
 
 	public void setTouchDelegate(TouchDelegate touchDelegate) {}
 
@@ -3069,9 +3092,19 @@ public class View implements Drawable.Callback {
 		return windowTokenAttached ? new WindowInsets() : null;
 	}
 
-	public PointerIcon getPointerIcon() { return null; }
+	/* Pointer icon state (queue item 125): AOSP default is null and
+	 * getPointerIcon() feeds the pointer-icon machinery; storing the
+	 * flag keeps set/get honest even though ATL has no cursor shape
+	 * plumbing yet. */
+	private PointerIcon atl_pointer_icon = null;
 
-	public void setPointerIcon(PointerIcon pointerIcon) {}
+	public PointerIcon getPointerIcon() {
+		return atl_pointer_icon;
+	}
+
+	public void setPointerIcon(PointerIcon pointerIcon) {
+		atl_pointer_icon = pointerIcon;
+	}
 
 	public IBinder getApplicationWindowToken() { return null; }
 
