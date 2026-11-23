@@ -122,8 +122,18 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return (Application)getApplicationContext();
 	}
 
+	/* Window manager (queue item 165): AOSP keeps one WindowManager per
+	 * activity (created in attach()); the fork built a fresh
+	 * WindowManagerImpl on every call, so identity comparisons and any
+	 * state the caller expects on it (apps keep it as a field and
+	 * compare windows through it) broke. The fork's WindowManagerImpl is
+	 * stateless (natives only), so one instance per activity is safe. */
+	private WindowManager atl_window_manager = null;
+
 	public WindowManager getWindowManager() {
-		return new WindowManagerImpl();
+		if (atl_window_manager == null)
+			atl_window_manager = new WindowManagerImpl();
+		return atl_window_manager;
 	}
 
 	public String getCallingPackage() {
