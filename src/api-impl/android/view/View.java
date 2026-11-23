@@ -2354,7 +2354,31 @@ public class View implements Drawable.Callback {
 		return nativeIsFocused(widget);
 	}
 
-	public void clearAnimation() {}
+	/* The animation AOSP's startAnimation() leaves running on the view
+	 * (mCurrentAnimation): it stays queryable until it ends or
+	 * clearAnimation() drops it, and setAnimation() sets it without
+	 * starting it. The fork kept no such slot - clearAnimation was empty
+	 * and getAnimation() always answered null, so a caller checking
+	 * "is anything animating this view?" (or getAnimation() before
+	 * restarting it) was told no. ATL has no per-frame animation driver:
+	 * startAnimation() runs the animation synchronously to its end
+	 * (recorded gap), so the slot is filled by startAnimation() and left
+	 * filled, which is the closest honest state, and Animation.hasEnded()
+	 * reports what happened. (queue item 195) */
+	private Animation atl_current_animation = null;
+
+	public void clearAnimation() {
+		atl_current_animation = null;
+		invalidate();
+	}
+
+	public Animation getAnimation() {
+		return atl_current_animation;
+	}
+
+	public void setAnimation(Animation animation) {
+		atl_current_animation = animation;
+	}
 
 	private ViewPropertyAnimator viewPropertyAnimator;
 	public ViewPropertyAnimator animate() {
@@ -2548,6 +2572,12 @@ public class View implements Drawable.Callback {
 	public void startAnimation(Animation animation) {
 		if (animation == null)
 			return;
+		/* AOSP keeps the animation on the view as mCurrentAnimation and
+		 * drives it per frame; ATL has no such driver (see the
+		 * atl_current_animation comment above), so the fork runs it
+		 * synchronously and still records it as the view's current
+		 * animation. */
+		atl_current_animation = animation;
 		onAnimationStart();
 		animation.start();
 		onAnimationEnd();
@@ -3511,8 +3541,6 @@ public class View implements Drawable.Callback {
 	}
 
 	public void onWindowFocusChanged(boolean hasFocus) {}
-
-	public void setAnimation(Animation animation) {}
 
 	/* AOSP: accessibility services drive view actions through this. ATL
 	 * has no a11y node infrastructure (its AccessibilityDelegate has no
