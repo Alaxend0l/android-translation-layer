@@ -1381,6 +1381,53 @@ public final class MotionEvent extends InputEvent {
 	float scroll_dx;
 	float scroll_dy;
 
+	/* AOSP keeps this state in the native event
+	 * (core/jni/android_view_MotionEvent.cpp); this implementation
+	 * builds events in Java (the JNI only calls the constructors
+	 * below), so it lives here. Queue items 374, 375, 379, 381: the
+	 * obtain(...) paths dropped the matching arguments and the getters
+	 * answered constants instead. Defaults are what AOSP's input layer
+	 * gives the events ATL actually produces: they all come from one
+	 * virtual touchscreen (api-impl-jni/views/android_view_View.c,
+	 * SOURCE_TOUCHSCREEN) with no pressure/size/tilt axes, and
+	 * frameworks/native's TouchInputMapper gives such a device
+	 * "pressure = isHovering ? 0 : 1" and size 0 (the PressureCalibration
+	 * default and SizeCalibration NONE branches, android16-release).
+	 */
+	private int atl_meta_state = 0;
+
+	private int atl_edge_flags = 0;
+
+	private int atl_flags = 0;
+
+	private int atl_button_state = ATL_BUTTON_STATE_UNSPECIFIED;
+
+	private int atl_device_id = ATL_VIRTUAL_TOUCHSCREEN_DEVICE_ID;
+
+	private long atl_down_time = ATL_DOWN_TIME_UNSET;
+
+	private float[] atl_pressures = null;
+
+	private float[] atl_sizes = null;
+
+	/* AOSP takes the device id from the InputDevice that produced the
+	 * event. ATL has one input source and InputDevice.getDeviceIds()
+	 * lists exactly that one (id 0), so events report the same id -
+	 * otherwise InputDevice.getDevice(event.getDeviceId()) and
+	 * getDeviceIds() would disagree (obtain(...) callers can still
+	 * describe their own id). */
+	private static final int ATL_VIRTUAL_TOUCHSCREEN_DEVICE_ID = 0;
+
+	private static final long ATL_DOWN_TIME_UNSET = -1;
+
+	private static final int ATL_BUTTON_STATE_UNSPECIFIED = -1;
+
+	/* Down time of the gesture in progress: AOSP makes the time of the
+	 * ACTION_DOWN the down time of every later event of the same
+	 * gesture, which is the only way getDownTime() can answer what its
+	 * javadoc asks ("when the user originally pressed down"). */
+	private static long atl_gesture_down_time = 0;
+
 	private MotionEvent() {
 	}
 
@@ -1404,6 +1451,15 @@ public final class MotionEvent extends InputEvent {
 
 		this.ids = ids;
 		this.coords = coords;
+
+		/* Gesture down time (see atl_gesture_down_time): the primary
+		 * ACTION_DOWN starts the gesture, the rest of its events keep
+		 * reporting that time. */
+		if ((action & ACTION_MASK) == ACTION_DOWN) {
+			atl_gesture_down_time = eventTime;
+		}
+		atl_down_time = (atl_gesture_down_time != 0 && eventTime >= atl_gesture_down_time)
+		    ? atl_gesture_down_time : eventTime;
 	}
 
 	@Override
@@ -1478,13 +1534,28 @@ public final class MotionEvent extends InputEvent {
 		ev.eventTime = eventTime;
 		ev.ids = new int[pointerCount];
 		ev.coords = new float[pointerCount * 4];
+		ev.atl_pressures = new float[pointerCount];
+		ev.atl_sizes = new float[pointerCount];
 		for (int i = 0; i < pointerCount; i++) {
 			ev.ids[i] = pointerProperties[i].id;
 			ev.coords[i * 4] = pointerCoords[i].x;
 			ev.coords[i * 4 + 1] = pointerCoords[i].y;
 			ev.coords[i * 4 + 2] = pointerCoords[i].x;
 			ev.coords[i * 4 + 3] = pointerCoords[i].y;
+			ev.atl_pressures[i] = pointerCoords[i].pressure;
+			ev.atl_sizes[i] = pointerCoords[i].size;
 		}
+		/* Queue items 374, 375, 379, 381: these arguments used to be
+		 * thrown away (the natives that would have stored them are not
+		 * part of this fork), so every getter below answered a constant
+		 * for events the caller had described in full. xPrecision and
+		 * yPrecision stay constant - this class reports 1 for both. */
+		ev.atl_down_time = downTime;
+		ev.atl_meta_state = metaState;
+		ev.atl_edge_flags = edgeFlags;
+		ev.atl_flags = flags;
+		ev.atl_button_state = buttonState;
+		ev.atl_device_id = deviceId;
 		return ev;
 	}
 
@@ -1587,9 +1658,20 @@ public final class MotionEvent extends InputEvent {
 			//                                 downTime * NS_PER_MS, eventTime * NS_PER_MS,
 			//                                 1, pp, pc);
 			ev.action = action;
-			ev.ids = new int[] {1};
-			ev.coords = new float[] {x, y, 0, 0};
+			/* AOSP's single-pointer obtain uses pointer id 0 (the
+			 * commented-out block above does the same); an id of 1 made
+			 * findPointerIndex(0) and friends miss their own pointer. */
+			ev.ids = new int[] {0};
+			/* Raw coordinates are the untransformed ones: AOSP's offset is
+			 * 0 for a fresh event, so raw == x/y rather than 0. */
+			ev.coords = new float[] {x, y, x, y};
 			ev.eventTime = eventTime;
+			ev.atl_down_time = downTime;
+			ev.atl_meta_state = metaState;
+			ev.atl_edge_flags = edgeFlags;
+			ev.atl_device_id = deviceId;
+			ev.atl_pressures = new float[] {pressure};
+			ev.atl_sizes = new float[] {size};
 			return ev;
 		}
 	}
@@ -1670,6 +1752,19 @@ public final class MotionEvent extends InputEvent {
 		ev.ids = other.ids.clone();
 		ev.coords = other.coords.clone();
 		ev.eventTime = other.eventTime;
+		/* AOSP's obtain(other)/nativeCopy copies the whole event, down
+		 * time and meta state included; dropping them made a copied
+		 * event answer differently from the original. */
+		ev.atl_down_time = other.atl_down_time;
+		ev.atl_meta_state = other.atl_meta_state;
+		ev.atl_edge_flags = other.atl_edge_flags;
+		ev.atl_flags = other.atl_flags;
+		ev.atl_button_state = other.atl_button_state;
+		ev.atl_device_id = other.atl_device_id;
+		if (other.atl_pressures != null)
+			ev.atl_pressures = other.atl_pressures.clone();
+		if (other.atl_sizes != null)
+			ev.atl_sizes = other.atl_sizes.clone();
 
 		return ev;
 	}
@@ -1735,8 +1830,13 @@ public final class MotionEvent extends InputEvent {
 	 */
 	@Override
 	public final int getDeviceId() {
-		return 1; // FIXME: implement this properly
-			  //return nativeGetDeviceId(mNativePtr);
+		/* AOSP asks the native event, whose id comes from the InputDevice
+		 * that produced it. Every event here comes from the one virtual
+		 * touchscreen the GTK backend feeds (queue item 376: the FIXME asked
+		 * for "proper" device tracking - there is exactly one device to
+		 * track), so the fixed id is the answer; obtain(...) stores the id a
+		 * caller describes instead. */
+		return atl_device_id;
 	}
 
 	/**
@@ -1811,8 +1911,12 @@ public final class MotionEvent extends InputEvent {
 	 * @see #FLAG_WINDOW_IS_OBSCURED
 	 */
 	public final int getFlags() {
-		// return nativeGetFlags(mNativePtr);
-		return 0;
+		/* Queue item 374. AOSP returns the event's flags; the input
+		 * dispatcher sets FLAG_WINDOW_IS_OBSCURED & friends while
+		 * dispatching, which ATL's window layer does not compute (recorded
+		 * gap), so the events it produces carry none - but an event built by
+		 * obtain(...) reports what the caller passed. */
+		return atl_flags;
 	}
 
 	/**
@@ -1838,8 +1942,12 @@ public final class MotionEvent extends InputEvent {
 	 * a stream of position events.
 	 */
 	public final long getDownTime() {
-		return getEventTime(); // FIXME?
-				       //		return nativeGetDownTimeNanos(mNativePtr) / NS_PER_MS;
+		/* Queue item 381: it used to answer eventTime, i.e. every gesture
+		 * looked instantaneous (eventTime - downTime == 0) and apps that
+		 * measure how long a press lasted got 0. The constructor now keeps
+		 * the gesture's ACTION_DOWN time (AOSP does the same in its input
+		 * layer) and obtain(...) stores the downTime it is given. */
+		return atl_down_time == ATL_DOWN_TIME_UNSET ? eventTime : atl_down_time;
 	}
 
 	/**
@@ -1910,8 +2018,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_PRESSURE
 	 */
 	public final float getPressure() {
-		//return nativeGetAxisValue(mNativePtr, AXIS_PRESSURE, 0, HISTORY_CURRENT);
-		return 0;
+		return getPressure(0);
 	}
 
 	/**
@@ -1921,7 +2028,7 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_SIZE
 	 */
 	public final float getSize() {
-		return nativeGetAxisValue(mNativePtr, AXIS_SIZE, 0, HISTORY_CURRENT);
+		return getSize(0);
 	}
 
 	/**
@@ -2039,7 +2146,15 @@ public final class MotionEvent extends InputEvent {
 	 * that pointer identifier.
 	 */
 	public final int findPointerIndex(int pointerId) {
-		return 0 /*nativeFindPointerIndex(mNativePtr, pointerId)*/;
+		/* Queue item 377: it answered 0 for every id, so a lookup of an id
+		 * this event does not contain claimed pointer 0 was correct. AOSP
+		 * returns the index whose PointerProperties id matches, or -1. */
+		int pointerCount = getPointerCount();
+		for (int i = 0; i < pointerCount; i++) {
+			if (getPointerId(i) == pointerId)
+				return i;
+		}
+		return -1;
 	}
 
 	/**
@@ -2094,8 +2209,22 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_PRESSURE
 	 */
 	public final float getPressure(int pointerIndex) {
-		//return nativeGetAxisValue(mNativePtr, AXIS_PRESSURE, pointerIndex, HISTORY_CURRENT);
-		return 0;
+		if (atl_pressures != null && pointerIndex < atl_pressures.length)
+			return atl_pressures[pointerIndex];
+		/* Queue items 383, 384: 0 was not AOSP's answer. For a touchscreen
+		 * without a pressure axis - all ATL's events come from one -
+		 * frameworks/native's TouchInputMapper reports "pressure = isHovering
+		 * ? 0 : 1" (android16-release, the default PressureCalibration
+		 * branch), so a finger that is down reports 1.0. Scroll events are
+		 * not covered by that branch (hover only) and report 1 like a touch. */
+		switch (getActionMasked()) {
+			case ACTION_HOVER_ENTER:
+			case ACTION_HOVER_MOVE:
+			case ACTION_HOVER_EXIT:
+				return 0f;
+			default:
+				return 1f;
+		}
 	}
 
 	/**
@@ -2113,8 +2242,13 @@ public final class MotionEvent extends InputEvent {
 	 * @see #AXIS_SIZE
 	 */
 	public final float getSize(int pointerIndex) {
-		return 1; // arbitrary
-			  //		return nativeGetAxisValue(mNativePtr, AXIS_SIZE, pointerIndex, HISTORY_CURRENT);
+		if (atl_sizes != null && pointerIndex < atl_sizes.length)
+			return atl_sizes[pointerIndex];
+		/* A size-less touchscreen gives SizeCalibration::NONE, and
+		 * TouchInputMapper then reports touchMajor/touchMinor/size 0
+		 * (android16-release), so 0 is AOSP's answer for ATL's virtual
+		 * touchscreen - the 1 that used to be here was not. */
+		return 0f;
 	}
 
 	/**
@@ -2259,8 +2393,13 @@ public final class MotionEvent extends InputEvent {
 	 * @see KeyEvent#getMetaState()
 	 */
 	public final int getMetaState() {
-		// return nativeGetMetaState(mNativePtr);
-		return 0;
+		/* Queue item 375: AOSP returns the modifier state the input reader
+		 * tracked when the event was made. ATL's GTK motion path does not
+		 * hand modifiers to the event, so the events it produces report 0 -
+		 * obtain(...) stores what the caller passed. Feeding GDK's modifier
+		 * state through the JNI input path is the follow-up that would make
+		 * the produced events report CTRL/SHIFT as AOSP does. */
+		return atl_meta_state;
 	}
 
 	/**
@@ -2275,7 +2414,10 @@ public final class MotionEvent extends InputEvent {
 	 * @see #BUTTON_BACK
 	 */
 	public final int getButtonState() {
-		// return nativeGetButtonState(mNativePtr);
+		if (atl_button_state != ATL_BUTTON_STATE_UNSPECIFIED)
+			return atl_button_state;
+		/* A touchscreen reports BUTTON_PRIMARY while a finger is down
+		 * (AOSP's input layer), which is what the events ATL produces are. */
 		if (getAction() == ACTION_DOWN || getAction() == ACTION_MOVE)
 			return BUTTON_PRIMARY;
 		else
@@ -2760,8 +2902,11 @@ public final class MotionEvent extends InputEvent {
 	 * @see #EDGE_BOTTOM
 	 */
 	public final int getEdgeFlags() {
-		// return nativeGetEdgeFlags(mNativePtr);
-		return 0;
+		/* Queue item 379: AOSP returns EDGE_LEFT/EDGE_TOP/... set by the input
+		 * dispatcher when the gesture started at a screen edge; ATL's input
+		 * path never marks edges (recorded gap), so 0 for the events it
+		 * produces, and the caller's value for events from obtain(...). */
+		return atl_edge_flags;
 	}
 
 	/**
