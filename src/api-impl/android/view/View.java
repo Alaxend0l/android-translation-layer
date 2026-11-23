@@ -2704,7 +2704,19 @@ public class View implements Drawable.Callback {
 		return nested_scrolling_enabled;
 	}
 
-	public boolean hasTransientState() { return false; }
+	/* Transient state (queue item 193): AOSP reference-counts it (every
+	 * setHasTransientState(true) paired with a later false) and
+	 * hasTransientState() reports count > 0; the fork kept neither, so an
+	 * adapter asking "is this item view mid-animation/selection?" always got
+	 * "no". ATL has no view-recycling pool to consume the answer and AOSP's
+	 * propagation of the flag to the parents (requestParentHasTransientState)
+	 * is not implemented — recorded with the recycling gap — but the count
+	 * and the query are real state now, including AOSP's clamp at 0. */
+	private int atl_transient_state_count = 0;
+
+	public boolean hasTransientState() {
+		return atl_transient_state_count > 0;
+	}
 
 	public final void cancelPendingInputEvents() {
 		cancelLongPress();
@@ -2766,7 +2778,19 @@ public class View implements Drawable.Callback {
 
 	public boolean isPaddingRelative() { return false; }
 
-	public void setForeground(Drawable foreground) {}
+	/* Foreground drawable (queue item 181): AOSP stores it (drawn over the
+	 * content, gravity from setForegroundGravity below); the setter dropped
+	 * it and getForeground answered null even when a foreground had been
+	 * set. ATL's gsk draw path composites no foreground yet - a rendering
+	 * gap - but the state (and the gravity that was already stored) now
+	 * round-trips, and callers that gate on "is there a foreground" are
+	 * correct. */
+	private Drawable atl_foreground = null;
+
+	public void setForeground(Drawable foreground) {
+		atl_foreground = foreground;
+		invalidate();
+	}
 
 	public int getForegroundGravity() { return mForegroundGravity; }
 
@@ -3124,7 +3148,9 @@ public class View implements Drawable.Callback {
 		atl_text_direction = textDirection;
 	}
 
-	public Drawable getForeground() { return null; }
+	public Drawable getForeground() {
+		return atl_foreground;
+	}
 
 	public void setScrollbarFadingEnabled(boolean fadeEnabled) {}
 
@@ -3194,7 +3220,20 @@ public class View implements Drawable.Callback {
 		return importantForAutofill;
 	}
 
-	public void setDefaultFocusHighlightEnabled(boolean enabled) {}
+	/* Focus highlight (queue item 183): AOSP keeps the flag (default true,
+	 * the state getDefaultFocusHighlightEnabled() reports — which the fork
+	 * did not even declare); the setter dropped it. ATL draws no focus
+	 * highlight of its own (GTK theme draws the focus ring), but apps and
+	 * androidx read this back, so it round-trips. */
+	private boolean atl_default_focus_highlight = true;
+
+	public void setDefaultFocusHighlightEnabled(boolean enabled) {
+		atl_default_focus_highlight = enabled;
+	}
+
+	public final boolean getDefaultFocusHighlightEnabled() {
+		return atl_default_focus_highlight;
+	}
 
 	public void setHorizontalFadingEdgeEnabled(boolean horizontalFadingEdgeEnabled) {}
 
@@ -3427,7 +3466,17 @@ public class View implements Drawable.Callback {
 
 	public void setNextFocusUpId(int id) {}
 
-	public void setHasTransientState(boolean hasTransientState) {}
+	public void setHasTransientState(boolean hasTransientState) {
+		/* AOSP reference-counts the flag and clamps it at 0 (an unpaired
+		 * false is a bug in the caller, which AOSP logs). ATL's ViewGroup
+		 * does not propagate the count to its parents
+		 * (requestParentHasTransientState) and there is no view-recycling
+		 * pool to gate on it - recorded with the recycling gap. */
+		atl_transient_state_count = hasTransientState
+				? atl_transient_state_count + 1 : atl_transient_state_count - 1;
+		if (atl_transient_state_count < 0)
+			atl_transient_state_count = 0;
+	}
 
 	protected void onConfigurationChanged(Configuration newConfig) {}
 
