@@ -21,9 +21,12 @@ ATL project by the postmarketOS developers.
   policy, so **nothing from this fork is ever submitted upstream**: no merge
   requests, no issues, no bug reports about fork-only behaviour. Please do
   not report problems with this fork to upstream.
-- Upstream changes are merged in periodically (`git fetch upstream`,
-  `git merge upstream/master`). The `upstream` remote is fetch-only.
+- Upstream changes are never fetched, merged or rebased here: the hard
+  fork is **complete** (2026-11-23) — no code flows in either direction,
+  and work is based on this repository's own lineage, not on upstream's
+  development.
 - Licensing is unchanged: ATL is GPLv3 (`LICENSE.txt`); upstream copyright
   notices are kept. Fork-specific changes are under the same license.
-- Branch `main` = upstream `master` (as of the fork point, `22a96b28`) plus
-  fork commits.
+- Branch `main` = upstream `master` at the fork point (`22a96b28`) plus
+  fork commits; from the fork point on, `main` and `local-fixes` are
+  pure Andrun lineage.
