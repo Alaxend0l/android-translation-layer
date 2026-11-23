@@ -196,7 +196,19 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return getWindow().requestFeature(featureId);
 	}
 
-	public final void setVolumeControlStream(int streamType) {}
+	public final void setVolumeControlStream(int streamType) {
+		/* AOSP routes both halves through the window (PhoneWindow keeps
+		 * the value); the fork had the setter empty and no getter at all,
+		 * so an app telling the volume keys which stream it owns was
+		 * ignored and could not read its own setting back (queue item
+		 * 266). ATL has no hardware volume keys routed through Android's
+		 * AudioManager — see the gap noted in Window below. */
+		getWindow().setVolumeControlStream(streamType);
+	}
+
+	public final int getVolumeControlStream() {
+		return getWindow().getVolumeControlStream();
+	}
 
 	@Export
 	protected void onCreate(Bundle savedInstanceState) {

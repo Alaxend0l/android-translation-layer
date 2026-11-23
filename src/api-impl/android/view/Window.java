@@ -235,6 +235,23 @@ public class Window {
 		return false;
 	}
 
+	/* Volume-control stream (queue item 266): AOSP's PhoneWindow keeps
+	 * this and its key handling routes the hardware volume keys to it.
+	 * Stored and read back now, so the pair round-trips; **gap: ATL has
+	 * no Android-side volume-key routing** (audio comes from the host, so
+	 * nothing consumes the stream type). AOSP's default is
+	 * AudioManager.USE_DEFAULT_STREAM_TYPE (-1), which the fork does not
+	 * declare as a constant. */
+	private int atl_volume_control_stream = -1 /* USE_DEFAULT_STREAM_TYPE */;
+
+	public void setVolumeControlStream(int streamType) {
+		atl_volume_control_stream = streamType;
+	}
+
+	public int getVolumeControlStream() {
+		return atl_volume_control_stream;
+	}
+
 	public void setTitle(CharSequence title) {
 		set_title(native_window, title != null ? title.toString() : context.getPackageName());
 	}
