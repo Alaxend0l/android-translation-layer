@@ -2629,7 +2629,25 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	public boolean isShown() { return true; }
+	/* Queue item 174: was constant true. AOSP's walk (this and every
+	 * ancestor VISIBLE, and attached: the chain must end at a non-View
+	 * parent). ATL's chain ends at WindowManagerImpl.WindowViewParent
+	 * (set in addView, view.parent = ...), the same role AOSP's
+	 * ViewRootImpl plays, so the AOSP walk works verbatim - a detached
+	 * view (parent null) correctly answers false. */
+	public boolean isShown() {
+		View current = this;
+		do {
+			if (current.getVisibility() != VISIBLE)
+				return false;
+			ViewParent parent = current.parent;
+			if (parent == null)
+				return false; // not attached to a window
+			if (!(parent instanceof View))
+				return true;
+			current = (View) parent;
+		} while (true);
+	}
 
 	public int getWindowVisibility() { return VISIBLE; }
 
@@ -3377,7 +3395,14 @@ public class View implements Drawable.Callback {
 
 	public ActionMode startActionMode(ActionMode.Callback callback) { return null; }
 
-	public void getFocusedRect(Rect r) {}
+	public void getFocusedRect(Rect r) {
+		/* AOSP base View answers the view's own drawing rect (ViewGroup
+		 * overrides to find the focused child's rect; ATL's focus search
+		 * is GTK's so there is no focused child to report). Queue item
+		 * 164: the body was empty, so callers got a 0x0 rect at origin
+		 * even for a laid-out view. */
+		getDrawingRect(r);
+	}
 
 	/**
 	* An implementation of OnClickListener that attempts to lazily load a
@@ -3455,7 +3480,36 @@ public class View implements Drawable.Callback {
 	}
 	public void setViewTranslationCallback(ViewTranslationCallback callback) {}
 	public void clearViewTranslationCallback() {}
-	public void transformMatrixToGlobal(Matrix matrix) {}
+	/* View-local <-> window-global matrix mapping (queue item 172). AOSP
+	 * walks the parent chain composing the scroll offsets and each view's
+	 * position, then its own transform matrix. The fork did nothing, so
+	 * callers (tooltip/popup placement, drag-and-drop shadow, exposed
+	 * surfaces) got an identity mapping. ATL's chain ends at
+	 * WindowManagerImpl.WindowViewParent, which already sits at the
+	 * window origin, so that leg needs no offset. Honest limitation:
+	 * ATL's getMatrix() is always identity (the transform state from
+	 * setScale/setRotation is not applied in the gsk draw path yet -
+	 * same rendering follow-up), so AOSP's matrix concat leg is a no-op
+	 * here by construction; positions and scrolls are real. */
+	public void transformMatrixToGlobal(Matrix matrix) {
+		ViewParent p = this.parent;
+		if (p instanceof View) {
+			View vp = (View) p;
+			vp.transformMatrixToGlobal(matrix);
+			matrix.preTranslate(-vp.scrollX, -vp.scrollY);
+		}
+		matrix.preTranslate(left, top);
+	}
+
+	public void transformMatrixToLocal(Matrix matrix) {
+		ViewParent p = this.parent;
+		if (p instanceof View) {
+			View vp = (View) p;
+			vp.transformMatrixToLocal(matrix);
+			matrix.postTranslate(vp.scrollX, vp.scrollY);
+		}
+		matrix.postTranslate(-left, -top);
+	}
 	public boolean isShowingLayoutBounds() {
 		return true;
 	}
