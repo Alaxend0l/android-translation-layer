@@ -1,6 +1,15 @@
-> **This is an unofficial, AI-assisted hard fork of Android Translation Layer, not affiliated with upstream.** Do not report issues from this fork upstream. See [FORK.md](FORK.md).
+# Andrun
 
-A translation layer that allows running Android apps on a Linux system
+> **Andrun is an unofficial, AI-assisted hard fork of Android Translation
+> Layer (ATL).** It is not affiliated with the upstream ATL developers,
+> postmarketOS, or Google. Do not report issues from this fork upstream.
+> See [FORK.md](FORK.md).
+
+Andrun runs Android apps on a Linux system, as windows on a Linux
+desktop. It is a hard fork of
+[Android Translation Layer](https://gitlab.com/android_translation_layer/android_translation_layer),
+built to measure and fix real app compatibility; the build keeps ATL's
+tool names (`android-translation-layer`, `atl-*`) for now.
 
 ![Angry Birds 3.2.0, Worms 2 Armageddon, and Gravity Defied running side by side by side](https://gitlab.com/android_translation_layer/android_translation_layer/-/raw/master/screenshot.png)
 ![Oculus Quest version of BeatSaber running on an aarch64 laptop](https://gitlab.com/android_translation_layer/android_translation_layer/-/raw/master/screenshot_2.png)

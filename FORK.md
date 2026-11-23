@@ -1,9 +1,20 @@
 # About this fork
 
-This is an **unofficial, AI-assisted hard fork** of
+This hard fork is now named **Andrun** (renamed 2026-11-23). It remains
+an **unofficial, AI-assisted hard fork** of
 [Android Translation Layer](https://gitlab.com/android_translation_layer/android_translation_layer)
-(ATL). It is not affiliated with, endorsed by, or supported by the upstream
-ATL developers.
+(ATL) and is not affiliated with, endorsed by, or supported by the
+upstream ATL developers, postmarketOS, or Google. "Andrun" is a new
+project name, chosen under GPLv3's freedom to rename (upstream copyright
+and license notices are untouched); it evokes "Android" without using the
+mark. A name scan found one unrelated dormant app ("andRUN", a 2012
+one-button running app, `com.sugart.andrun`) - no relation, no overlap
+with what Andrun is. The build outputs keep ATL's names (binary
+`android-translation-layer`, `atl-*` tools) for now; renaming those is a
+separate mechanical change (harness/runner paths depend on them).
+
+Origin and continued credit: everything in `src/` builds on the upstream
+ATL project by the postmarketOS developers.
 
 - Changes here are made with the help of AI coding agents, driven by the
   `atl-harness` compatibility harness. Upstream has a no-AI-contributions
