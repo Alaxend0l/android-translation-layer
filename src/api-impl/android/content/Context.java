@@ -669,6 +669,13 @@ public abstract class Context {
 	}
 	public abstract boolean isDeviceProtectedStorage();
 
+	/* Wallpaper (queue item 279, deprecated in AOSP in favour of
+	 * WallpaperManager): AOSP's ContextImpl asks the wallpaper service —
+	 * the static wallpaper bytes, else a live wallpaper's drawable
+	 * through its service — and returns null when there is no wallpaper
+	 * data and no wallpaper component to talk to. ATL has no wallpaper
+	 * host at all, which is exactly that null case: null is AOSP's own
+	 * answer here, not a dropped drawable. */
 	public Drawable getWallpaper() {
 		return null;
 	}

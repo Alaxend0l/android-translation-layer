@@ -1030,6 +1030,8 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+		/* AOSP's default is literally false (queue item 281) — the
+		 * value-apps expect when nothing consumed the long press. */
 		return false;
 	}
 
