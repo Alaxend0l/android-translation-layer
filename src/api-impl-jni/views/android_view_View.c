@@ -978,6 +978,16 @@ JNIEXPORT void JNICALL Java_android_view_View_nativeRequestFocus(JNIEnv *env, jo
 		gtk_widget_grab_focus(wrapper);
 }
 
+/* AOSP View.hasWindowFocus(): the attach-info window is active. GTK4
+ * tracks window activation on the GtkWindow that is the widget's root. */
+JNIEXPORT jboolean JNICALL Java_android_view_View_nativeHasWindowFocus(JNIEnv *env, jobject this, jlong widget_ptr)
+{
+	GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(_PTR(widget_ptr)));
+	if (!GTK_IS_WINDOW(root))
+		return false;
+	return gtk_window_is_active(GTK_WINDOW(root));
+}
+
 JNIEXPORT jboolean JNICALL Java_android_view_View_nativeIsFocused(JNIEnv *env, jobject this, jlong widget_ptr)
 {
 	GtkWidget *widget = GTK_WIDGET(_PTR(widget_ptr));

@@ -2389,7 +2389,14 @@ public class View implements Drawable.Callback {
 
 	public void setOnFocusChangeListener(View.OnFocusChangeListener l) {}
 
-	public boolean hasWindowFocus() { return true; }
+	/* AOSP: does the window this view is attached to currently have
+	 * focus (queue item 133). Was constant true. Uses GTK's real window
+	 * activation state via a new JNI helper; a detached view has no
+	 * window and answers false like AOSP. */
+	public boolean hasWindowFocus() {
+		return windowTokenAttached && nativeHasWindowFocus(widget);
+	}
+	private static native boolean nativeHasWindowFocus(long widget);
 
 	public void setSaveEnabled(boolean enabled) {}
 

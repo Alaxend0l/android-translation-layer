@@ -55,6 +55,7 @@ static void activity_unfocus(JNIEnv *env, jobject activity)
 	J__Activity__onStop(env, activity);
 	ATL_LIFECYCLE_CHECK(env);
 
+	_SET_BOOL_FIELD(activity, "windowFocused", false);
 	J__Activity__onWindowFocusChanged(env, activity, false);
 	ATL_LIFECYCLE_CHECK(env);
 }
@@ -87,6 +88,7 @@ static void activity_focus(JNIEnv *env, jobject activity)
 	if (_GET_BOOL_FIELD(activity, "finishing"))
 		return;
 
+	_SET_BOOL_FIELD(activity, "windowFocused", true);
 	J__Activity__onWindowFocusChanged(env, activity, true);
 	ATL_LIFECYCLE_CHECK(env);
 }
@@ -126,6 +128,7 @@ void activity_window_ready(void)
 	JNIEnv *env = get_jni_env();
 
 	for (GList *l = activity_backlog; l != NULL; l = l->next) {
+		_SET_BOOL_FIELD(l->data, "windowFocused", true);
 		J__Activity__onWindowFocusChanged(env, l->data, true);
 		ATL_LIFECYCLE_CHECK(env);
 	}

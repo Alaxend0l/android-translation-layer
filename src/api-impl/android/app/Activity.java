@@ -624,8 +624,18 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return null;
 	}
 
+	/* Queue item 131: was `return true; // FIXME?`. ATL's window-focus
+	 * signal is onWindowFocusChanged(hasFocus), fired by
+	 * api-impl-jni/app/android_app_Activity.c when an activity becomes
+	 * or stops being the visible one in the app window's stack (ATL's
+	 * focus model is per-activity-in-window, not GTK window
+	 * activation). JNI sets this field directly on every callback
+	 * because apps override onWindowFocusChanged and often skip
+	 * super(). */
+	private boolean windowFocused = false;
+
 	public boolean hasWindowFocus() {
-		return true; // FIXME?
+		return windowFocused;
 	}
 
 	public boolean isDestroyed() {
