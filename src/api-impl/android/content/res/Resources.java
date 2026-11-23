@@ -1523,7 +1523,18 @@ public class Resources {
 
 		private final AssetManager mAssets;
 
-		public void rebase() {}
+		public void rebase() {
+			/* AOSP re-loads the theme's resources for its current
+			 * configuration overrides (recreateAssociatedResources +
+			 * onThemeChanged); it exists so a caller can re-resolve
+			 * attributes after the configuration changed underneath the
+			 * theme (queue item 213). ATL's Theme is a live GTK theme
+			 * handle whose values are resolved on each getResourceValue
+			 * call against the process-wide configuration — there is no
+			 * per-theme configuration state to rebase against (ATL never
+			 * reconfigures a running process; that is the same gap as
+			 * the ComponentCallbacks contract). */
+		}
 
 		public Drawable getDrawable(int resId) {
 			return Resources.this.getDrawable(resId, this);

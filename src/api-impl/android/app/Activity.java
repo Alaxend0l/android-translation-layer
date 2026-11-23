@@ -701,7 +701,14 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		finish();
 	}
 
-	public void overridePendingTransition(int enterAnim, int exitAnim) {}
+	public void overridePendingTransition(int enterAnim, int exitAnim) {
+		/* AOSP hands the animation resource pair to the window manager
+		 * for the activity transition just started (queue item 219). ATL
+		 * transitions activities in-process with no window-manager
+		 * animation stage — there is no transition to decorate (same gap
+		 * as the postpone-enter-transition stubs nearby), so the
+		 * request has nothing to attach to. */
+	}
 
 	public native boolean isTaskRoot();
 
@@ -710,6 +717,11 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	public void startPostponedEnterTransition() {}
 
 	public boolean isChild() {
+		/* AOSP: mParent != null, i.e. this is an embedded (child)
+		 * activity of a LocalActivityManager host (queue item 223). The
+		 * fork never sets an activity parent — ATL has no embedded
+		 * activity support at all — so false is not a dropped value, it
+		 * is the state. */
 		return false;
 	}
 
@@ -806,6 +818,13 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean onSearchRequested() {
+		/* AOSP calls startSearch(null, false, null, false) and returns
+		 * true (false only on TV/watch UI modes) (queue item 215). The
+		 * fork has no startSearch at all, no SearchManager service and
+		 * no search dialog, so no search would start and answering true
+		 * would be a lie — false is what AOSP returns when search is
+		 * unavailable. **Gap: search subsystem** (startSearch +
+		 * SearchManager). */
 		return false;
 	}
 
@@ -832,6 +851,13 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public void closeOptionsMenu() {
+		/* AOSP gates on mWindow.hasFeature(FEATURE_OPTIONS_PANEL) and
+		 * then closes the panel (queue item 217). That feature can never
+		 * be granted in ATL — Window.requestFeature answers no for
+		 * everything (queue item 208's finding) and Window.hasFeature is
+		 * false — so AOSP's own closeOptionsMenu would do nothing here
+		 * either; the fork has no openPanel/closePanel machinery at all.
+		 * The empty body is the faithful answer, not dropped state. */
 	}
 
 	public void finishActivity(int requestCode) {
@@ -914,7 +940,19 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		this.window = new Window(this, this);
 	}
 
-	public void applyOverrideConfiguration(Configuration overrideConfiguration) {}
+	public void applyOverrideConfiguration(Configuration overrideConfiguration) {
+		/* AOSP applies the override to the *embedded* activity config
+		 * state (mOverrideConfiguration, merged into the activity's
+		 * Configuration by the activity launcher) — the feature belongs
+		 * to embedded activities, which ATL does not have (see isChild)
+		 * (queue item 218). The fork also has no config-override path:
+		 * Configuration comes from the ATL process, not per-activity.
+		 * No-op rather than AOSP's IllegalStateException, because ATL
+		 * cannot tell embedded from non-embedded callers; a caller
+		 * (androidx embedded-window helpers) proceeds with the process
+		 * config, which is all ATL could give it. Recorded with the
+		 * embedded-activity gap. */
+	}
 
 	public ComponentName getCallingActivity() {
 		return resultActivity == null ? null : resultActivity.getComponentName();
