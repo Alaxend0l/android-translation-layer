@@ -625,11 +625,17 @@ public class PopupMenu {
 
 		@Override
 		public boolean expandActionView() {
+			/* AOSP's popup answer (queue item 343): expansion goes through
+			 * MenuBuilder.expandItemActionView to presenters that can host an
+			 * expanded view; nothing can in a popup, so AOSP returns false
+			 * here too. */
 			return false;
 		}
 
 		@Override
 		public boolean isActionViewExpanded() {
+			/* mIsActionViewExpanded can only be set by the expand path above,
+			 * which is false in popups (AOSP), so the flag is always false. */
 			return false;
 		}
 
@@ -641,6 +647,11 @@ public class PopupMenu {
 
 		@Override
 		public MenuItem setIconTintList(ColorStateList tint) {
+			/* AOSP stores mIconTintList for the action bar's item view; a
+			 * GMenu popover row is label-only (the icon itself is stored for
+			 * getIcon, but nothing renders it) and there is no getter for the
+			 * tint at this API level (queue item 337), so nothing can read it
+			 * back in a popup either - faithful no-op. */
 			return this;
 		}
 	}
