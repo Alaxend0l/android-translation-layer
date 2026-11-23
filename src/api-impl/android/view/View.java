@@ -1449,6 +1449,13 @@ public class View implements Drawable.Callback {
 
 	protected native void native_drawBackground(long widget, long snapshot);
 	protected native void native_drawContent(long widget, long snapshot);
+	/* queue item 292: this View-side body is AOSP's placeholder —
+	 * drawChildren is ViewGroup territory: ViewGroup re-declares
+	 * native_drawChildren as a real native method and the JNI
+	 * implementation lives in api-impl-jni/views/
+	 * android_view_ViewGroup.c; a plain View has no children, so the
+	 * dispatchDraw above reaching this empty body is the correct
+	 * no-op. */
 	protected void native_drawChildren(long widget, long snapshot) {} // override in ViewGroup
 
 	/* should be called from onTouchEvent() of GtkWidget implementations */
@@ -1608,6 +1615,9 @@ public class View implements Drawable.Callback {
 		}
 	}
 
+	/* AOSP's View-base body is literally empty (queue item 293) — the
+	 * hook exists for subclasses (ViewGroup.setSelected propagates it to
+	 * children, which the fork already overrides below). */
 	protected void dispatchSetSelected(boolean selected) {}
 
 	public boolean isSelected() {
@@ -1624,6 +1634,9 @@ public class View implements Drawable.Callback {
 		}
 	}
 
+	/* Same as dispatchSetSelected above: AOSP's View-base body is
+	 * literally empty (queue item 294); ViewGroup overrides it to
+	 * propagate activation to children. */
 	protected void dispatchSetActivated(boolean activated) {}
 
 	public boolean isActivated() {

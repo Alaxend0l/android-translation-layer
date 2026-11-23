@@ -930,7 +930,16 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 			callback.onActivityPreDestroyed(this);
 	}
 
-	public void setDisablePreviewScreenshots(boolean disable) {}
+	public void setDisablePreviewScreenshots(boolean disable) {
+		/* queue item 291: AOSP's body is literally
+		 * setRecentsScreenshotEnabled(!disable) — a hint to the recents
+		 * service about the task's snapshot. ATL has no recents, no task
+		 * snapshots and no system UI at all (the **activity task stack
+		 * gap** recorded at moveTaskToBack/getTaskId), and AOSP's
+		 * setRecentsScreenshotEnabled is a call into the activity task
+		 * manager that keeps no visible state — so nothing to store or
+		 * answer. */
+	}
 	public final View requireViewById(int id) {
 		View view = findViewById(id);
 		if (view == null)
@@ -963,7 +972,16 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return root == null ? null : root.findFocus();
 	}
 
-	public void setProgressBarIndeterminateVisibility(boolean indeterminate) {}
+	public final void setProgressBarIndeterminateVisibility(boolean indeterminate) {
+		/* queue item 288: AOSP's body is
+		 * getWindow().setFeatureInt(FEATURE_INDETERMINATE_PROGRESS, ...),
+		 * and PhoneWindow's setFeatureInt returns immediately when
+		 * hasFeature(featureId) is false — a feature it only grants if
+		 * the theme requests it. ATL's Window.hasFeature answers false
+		 * for everything (queue item 208's finding: requestFeature
+		 * never grants), so AOSP's own path is a no-op here, faithfully:
+		 * there is no title progress bar UI in ATL's windows at all. */
+	}
 
 	public int getChangingConfigurations() {
 		return 0;
@@ -1070,6 +1088,8 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean onKeyMultiple(int keyCode, int repeatCount, KeyEvent event) {
+		/* AOSP's default is literally false (queue item 285) — the
+		 * answer when nothing consumed the key repeat. */
 		return false;
 	}
 
