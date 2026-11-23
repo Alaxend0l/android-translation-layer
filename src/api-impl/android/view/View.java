@@ -2903,7 +2903,14 @@ public class View implements Drawable.Callback {
 
 	public boolean onCheckIsTextEditor() { return false; }
 
-	public boolean hasOnClickListeners() { return false; }
+	/* Click listener state (queue item 177): AOSP answers whether an
+	 * OnClickListener is registered; the fork said false even though
+	 * setOnClickListener stores one, so apps' "do I own this click?"
+	 * branches (and androidx click-handling helpers) took the wrong
+	 * path. */
+	public boolean hasOnClickListeners() {
+		return on_click_listener != null;
+	}
 
 	public void setTextAlignment(int textAlignment) {
 		String[] classesToRemove = {"ATL-text-align-left", "ATL-text-align-center", "ATL-text-align-right"};
@@ -3100,7 +3107,19 @@ public class View implements Drawable.Callback {
 			return null;
 	}
 
-	public void setTooltipText(CharSequence tooltip) {}
+	/* Tooltip state (queue item 171): AOSP stores the text (and shows
+	 * it on hover/long-click); the fork dropped it and had no getter at
+	 * all. ATL shows no tooltip UI yet (a rendering gap), but the value
+	 * round-trips now. */
+	private CharSequence atl_tooltip_text = null;
+
+	public void setTooltipText(CharSequence tooltip) {
+		atl_tooltip_text = tooltip;
+	}
+
+	public CharSequence getTooltipText() {
+		return atl_tooltip_text;
+	}
 
 	/* Autofill hints (queue item 113): AOSP stores the flag and hands it
 	 * back through getImportantForAutofill; the autofill service itself
