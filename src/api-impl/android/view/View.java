@@ -746,7 +746,10 @@ public class View implements Drawable.Callback {
 	}
 
 	public interface OnFocusChangeListener {
-		// TODO
+		/* AOSP signature (was `// TODO`, i.e. no method at all, so a
+		 * stored listener had nothing to be called on - queue item 187).
+		 * App classes implement this shape already. */
+		void onFocusChange(View v, boolean hasFocus);
 	}
 
 	public interface OnCreateContextMenuListener {
@@ -1441,7 +1444,15 @@ public class View implements Drawable.Callback {
 		this.id = id;
 	}
 
-	public void setOnKeyListener(OnKeyListener l) {}
+	/* Key listener (queue item 191): the setter was empty, so a listener
+	 * registered for keyboard input was stored nowhere and called
+	 * nowhere. AOSP's dispatchKeyEventNoClient asks mOnKeyListener for
+	 * the event before the view handles it itself. */
+	private OnKeyListener on_key_listener = null;
+
+	public void setOnKeyListener(OnKeyListener l) {
+		on_key_listener = l;
+	}
 
 	public void setFocusable(boolean focusable) {
 		atl_focusable = focusable;
@@ -2446,9 +2457,27 @@ public class View implements Drawable.Callback {
 	@Export
 	public void computeScroll() {}
 
+	/* Drawable state animations (queue item 180): AOSP jumps this view's
+	 * drawables' state animators to their end values (ViewGroup overrides it
+	 * to walk the children). ATL's Drawable has no state-animator machinery
+	 * at all — Drawable.jumpToCurrentState is empty and there is no
+	 * StateAnimatorData/animation property list in the fork — so there is no
+	 * animation to jump: the no-op is faithful, recorded with the drawable
+	 * animation gap. */
 	public void jumpDrawablesToCurrentState() {}
 
-	public void setOnFocusChangeListener(View.OnFocusChangeListener l) {}
+	/* Focus listener (queue item 187): the setter dropped the listener and
+	 * the interface had no method (fixed above). State now round-trips and
+	 * getOnFocusChangeListener answers it. Honest gap: nothing calls it
+	 * yet - ATL's focus is owned by GTK (requestFocus/clearFocus go to
+	 * nativeRequestFocus) and the fork has neither View.onFocusChanged nor
+	 * a JNI focus-change callback, so there is no moment to dispatch from.
+	 * Recorded with the input gaps rather than half-wired. */
+	private OnFocusChangeListener on_focus_change_listener = null;
+
+	public void setOnFocusChangeListener(View.OnFocusChangeListener l) {
+		on_focus_change_listener = l;
+	}
 
 	/* AOSP: does the window this view is attached to currently have
 	 * focus (queue item 133). Was constant true. Uses GTK's real window
@@ -3234,6 +3263,14 @@ public class View implements Drawable.Callback {
 
 	@Export
 	public boolean dispatchKeyEvent(KeyEvent event) {
+		/* AOSP's dispatchKeyEventNoClient gives the registered
+		 * OnKeyListener the event before the view handles it, and stops
+		 * if the listener consumes it (queue item 191). The rest stays as
+		 * the fork has it: only the DOWN half is handled here, the UP half
+		 * is the keyboard-activation gap recorded at onKeyDown. */
+		if (on_key_listener != null
+				&& on_key_listener.onKey(this, event.getKeyCode(), event))
+			return true;
 		if (event.getAction() == KeyEvent.ACTION_DOWN)
 			return onKeyDown(event.getKeyCode(), event);
 		else
@@ -3605,7 +3642,9 @@ public class View implements Drawable.Callback {
 
 	public float getCameraDistance() { return 0; }
 
-	public OnFocusChangeListener getOnFocusChangeListener() { return null; }
+	public OnFocusChangeListener getOnFocusChangeListener() {
+		return on_focus_change_listener;
+	}
 
 	public int getTextDirection() {
 		return atl_text_direction;
