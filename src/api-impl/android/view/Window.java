@@ -126,6 +126,15 @@ public class Window {
 	}
 
 	public boolean requestFeature(int featureId) {
+		/* No window feature can be granted: ATL's window is a GTK window
+		 * whose decorations, focus ring and title come from GTK/the window
+		 * manager, and the fork has no PhoneWindow-style feature flags that
+		 * change the decor (FEATURE_NO_TITLE, FEATURE_ACTION_BAR ...). The
+		 * action bar that Window.getActionBar() hands out is built
+		 * regardless of a request. So "not supported" is the honest answer
+		 * and callers fall back the way they do on a window that lacks the
+		 * feature (queue item 208, reached from Activity.requestWindowFeature,
+		 * which now delegates here instead of answering in the Activity). */
 		return false;
 	}
 

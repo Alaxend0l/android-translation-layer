@@ -176,7 +176,13 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public final boolean requestWindowFeature(int featureId) {
-		return false; // whatever feature it is, it's probably not supported
+		/* AOSP asks its Window (PhoneWindow.requestFeature), and that is
+		 * where the answer belongs, so the call is routed there rather
+		 * than answered in Activity. The answer is still no, and for the
+		 * same reason as before: ATL's window chrome is GTK's — the fork
+		 * has no feature negotiation to grant (see Window.requestFeature).
+		 * Route 208: the point is that the Activity no longer decides. */
+		return getWindow().requestFeature(featureId);
 	}
 
 	public final void setVolumeControlStream(int streamType) {}
