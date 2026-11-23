@@ -102,7 +102,11 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 					continue;
 				boolean done = false;
 				for (PackageParser.IntentInfo intent : activity.intents) {
-					Slog.i(TAG, intent.toString());
+					/* Queue item 303: this dumped every intent of every
+					 * activity on each launch — startup noise, and the
+					 * scanner's "prints on every call" flag. The failure
+					 * prints below stay: they explain the System.exit(1)
+					 * that follows them. */
 					if ((uri == null && intent.hasCategory("android.intent.category.LAUNCHER") && intent.hasAction("android.intent.action.MAIN")) ||        // NOLINT
 					    (uri != null && intent.hasDataScheme(uri.getScheme())                  && intent.hasCategory("android.intent.category.DEFAULT"))) { // NOLINT
 						className = activity.info.targetActivity != null ? activity.info.targetActivity : activity.className;
