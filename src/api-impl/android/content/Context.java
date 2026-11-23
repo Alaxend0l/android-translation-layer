@@ -622,7 +622,24 @@ public abstract class Context {
 	public abstract Context createConfigurationContext(Configuration configuration);
 
 	public void sendOrderedBroadcast(Intent intent, String receiverPermission, BroadcastReceiver resultReceiver, Handler handler, int flags, String extra, Bundle options) {
-		System.out.println("sendOrderedBroadcast(" + intent + ", " + receiverPermission + ", " + resultReceiver + ", " + handler + ", " + flags + ", " + extra + ", " + options + ") called");
+		/* AOSP queues the broadcast to every matching receiver in
+		 * priority order and then hands the final result to
+		 * resultReceiver, which receives it even when it matches no
+		 * filter (queue item 270). The fork printed the call and
+		 * delivered nothing, so an app using the ordered form — the
+		 * usual "send a broadcast and get the result back" pattern —
+		 * never reached its own receivers at all. ATL delivers
+		 * in-process broadcasts synchronously through sendBroadcast;
+		 * the ordering, the result plumbing (ordered-intent
+		 * resultCode/nextReceiver), the receiverPermission check, the
+		 * `handler` scheduler and `extra` result data are all **gap:
+		 * ordered broadcast plumbing in ATL** and stay unimplemented.
+		 * What is fixed: the broadcast really goes out, and
+		 * resultReceiver now gets AOSP's guaranteed final delivery.
+		 * (No print either — the old one fired on every call.) */
+		sendBroadcast(intent);
+		if (resultReceiver != null)
+			resultReceiver.onReceive(this, intent);
 	}
 
 	public abstract Context createDisplayContext(Display display);
