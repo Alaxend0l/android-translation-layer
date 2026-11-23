@@ -951,7 +951,15 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean moveTaskToBack(boolean nonroot) {
-		return true;
+		/* AOSP asks the activity task manager to push this activity's
+		 * task behind the others (queue item 276). ATL has no task
+		 * concept at all — no recents, no task stack, no window
+		 * stacking to move behind (the same gap as setTaskDescription
+		 * and getTaskId) — and Android itself returns false when the
+		 * task cannot be moved. Callers use that answer to fall back
+		 * (many call finish()), which is the honest path here; the old
+		 * `true` claimed a hide that never happened. */
+		return false;
 	}
 
 	public void setFinishOnTouchOutside(boolean finish) {
@@ -1075,6 +1083,22 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public boolean onNavigateUp() {
+		/* AOSP (queue item 282): with no parent metadata
+		 * (getParentActivityIntent, which the fork answers from the
+		 * manifest — queue item 209) it returns false; with a parent it
+		 * finishes (null task affinity), rebuilds the task
+		 * (TaskStackBuilder) or delivers to the running parent
+		 * (navigateUpTo -> the task manager's task walk). The fork can
+		 * answer the first branch exactly, and has none of what the
+		 * other three need: navigateUpTo/shouldUpRecreateTask are not
+		 * declared, taskAffinity is not parsed, and nothing tracks the
+		 * running activities of a task to walk — **gap: activity task
+		 * stack** (same as moveTaskToBack/getTaskId). The old code
+		 * returned false before even looking at the manifest; the
+		 * common no-parent case is now AOSP's explicit answer rather
+		 * than a constant. */
+		if (getParentActivityIntent() == null)
+			return false;
 		return false;
 	}
 
