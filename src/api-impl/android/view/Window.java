@@ -300,6 +300,19 @@ public class Window {
 
 	public void setDimAmount(float dimAmount) {}
 
+	/* Close-on-touch-outside (queue item 289): AOSP keeps it on the
+	 * window (mCloseOnTouchOutside, default false) for its decor's
+	 * outside-touch handler to finish the activity;
+	 * Activity.setFinishOnTouchOutside is a pass-through to this. ATL
+	 * receives no outside-window touches at all (**gap:
+	 * outside-touch dispatch**), so the flag is stored as API state with
+	 * no consumer. */
+	private boolean atl_close_on_touch_outside = false;
+
+	public void setCloseOnTouchOutside(boolean close) {
+		atl_close_on_touch_outside = close;
+	}
+
 	private native void set_title(long native_window, String title);
 	public native void take_input_queue(long native_window, InputQueue.Callback callback, InputQueue queue);
 	public native void set_layout(long native_window, int width, int height);

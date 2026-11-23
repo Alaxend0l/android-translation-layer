@@ -829,7 +829,31 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 			return new Uri.Builder().scheme("android-app").authority(callingPackage).build();
 		return null;
 	}
-	public void setDefaultKeyMode(int flag) {}
+	/* Default key mode (queue item 290): AOSP stores the mode on the
+	 * activity (default DEFAULT_KEYS_DISABLE) and consumes it in its
+	 * unhandled-key fallback — characters launch the dialer
+	 * (DEFAULT_KEYS_DIALER), start local/global search
+	 * (DEFAULT_KEYS_SEARCH_*), or run menu shortcuts
+	 * (DEFAULT_KEYS_SHORTCUT). The value is stored now; the fallback
+	 * itself needs subsystems ATL does not have — no searchable-activity
+	 * search (**gap: search subsystem**), no menu-shortcut machinery,
+	 * no dialer intent target — so the mode stays state with no
+	 * consumer. AOSP's constants are copied for apps that read them. */
+	public static final int DEFAULT_KEYS_DISABLE = 0;
+
+	public static final int DEFAULT_KEYS_DIALER = 1;
+
+	public static final int DEFAULT_KEYS_SHORTCUT = 2;
+
+	public static final int DEFAULT_KEYS_SEARCH_LOCAL = 3;
+
+	public static final int DEFAULT_KEYS_SEARCH_GLOBAL = 4;
+
+	private int atl_default_key_mode = DEFAULT_KEYS_DISABLE;
+
+	public final void setDefaultKeyMode(int flag) {
+		atl_default_key_mode = flag;
+	}
 	public void registerForContextMenu(View view) {
 		/* AOSP's body is literally this: the activity becomes the view's
 		 * context-menu listener (unregister clears it) (queue item 251).
@@ -963,6 +987,16 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public void setFinishOnTouchOutside(boolean finish) {
+		/* AOSP routes it to the window's close-on-touch-outside flag
+		 * (queue item 289, Window.setCloseOnTouchOutside; PhoneWindow
+		 * also reads windowCloseOnTouchOutside from the theme into the
+		 * same flag). Stored on the window now; what ATL lacks is the
+		 * consumer — touches outside the window never reach the app:
+		 * the window manager that delivers ACTION_OUTSIDE to a decor
+		 * view does not exist here (**gap: outside-touch dispatch**),
+		 * the same reason getWindowDecorActionBar-style decor features
+		 * are absent. */
+		getWindow().setCloseOnTouchOutside(finish);
 	}
 
 	public void closeOptionsMenu() {
