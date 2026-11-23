@@ -2689,9 +2689,32 @@ public class View implements Drawable.Callback {
 		postDelayed(action, delayMillis);
 	}
 
-	public void setHorizontalScrollBarEnabled(boolean enabled) {}
+	/* Scrollbar enable flags (queue item 220): AOSP stores these (and
+	 * defaults them from the scrollbars styleable — "not drawn by
+	 * default", so false on a bare View, true on its scroll widgets) and
+	 * is…ScrollBarEnabled() reads them back; they gate its own scrollbar
+	 * drawing and awakenScrollBars. ATL draws no scrollbars of its own
+	 * (the GTK scroll widget is the visible affordance — same gap as
+	 * awakenScrollBars), so the flags gate nothing yet, but callers set
+	 * and read them back. */
+	private boolean atl_horizontal_scroll_bar_enabled = false;
+	private boolean atl_vertical_scroll_bar_enabled = false;
 
-	public void setVerticalScrollBarEnabled(boolean enabled) {}
+	public void setHorizontalScrollBarEnabled(boolean enabled) {
+		atl_horizontal_scroll_bar_enabled = enabled;
+	}
+
+	public boolean isHorizontalScrollBarEnabled() {
+		return atl_horizontal_scroll_bar_enabled;
+	}
+
+	public void setVerticalScrollBarEnabled(boolean enabled) {
+		atl_vertical_scroll_bar_enabled = enabled;
+	}
+
+	public boolean isVerticalScrollBarEnabled() {
+		return atl_vertical_scroll_bar_enabled;
+	}
 
 	public void postInvalidateOnAnimation() {
 		postInvalidate();
@@ -3086,7 +3109,15 @@ public class View implements Drawable.Callback {
 		return on_click_listener != null;
 	}
 
+	/* Text alignment (queue item 211): the setter mapped the value onto
+	 * GTK CSS classes but dropped the value itself, so the getter had
+	 * nothing to answer with. AOSP keeps it (PFLAG2_TEXT_ALIGNMENT_*) and
+	 * getTextAlignment() returns the resolved value, defaulting to
+	 * TEXT_ALIGNMENT_GRAVITY for a view that never had it set. */
+	private int atl_text_alignment = TEXT_ALIGNMENT_GRAVITY;
+
 	public void setTextAlignment(int textAlignment) {
+		atl_text_alignment = textAlignment;
 		String[] classesToRemove = {"ATL-text-align-left", "ATL-text-align-center", "ATL-text-align-right"};
 		native_removeClasses(widget, classesToRemove);
 
@@ -3343,7 +3374,14 @@ public class View implements Drawable.Callback {
 		pendingLongClick = null;
 	}
 
-	public int getTextAlignment() { return 0; }
+	public int getTextAlignment() {
+		/* AOSP keeps the resolved alignment (setTextAlignment below already
+		 * maps the value onto GTK CSS classes but dropped the value
+		 * itself), so setTextAlignment(TEXT_ALIGNMENT_CENTER) followed by
+		 * getTextAlignment() answered INHERIT. AOSP's default is
+		 * TEXT_ALIGNMENT_GRAVITY (the value a bare View resolves to). */
+		return atl_text_alignment;
+	}
 
 	public View findViewWithTag(Object tag) {
 		if (Objects.equals(tag, this.tag))
@@ -3681,9 +3719,22 @@ public class View implements Drawable.Callback {
 		return native_get_window(widget).getInsetsController();
 	}
 
-	public final boolean isKeyboardNavigationCluster() { return false; }
+	/* Keyboard navigation cluster (queue item 216): AOSP stores the flag
+	 * (focus search jumps between clusters) and isKeyboardNavigationCluster
+	 * reads it back; the setter dropped it while the getter was already
+	 * declared — and hard-wired to false, so the pair never round-tripped.
+	 * ATL's focus is owned by GTK (queue item 88's finding), so the
+	 * cluster does not steer any search here, but the flag is real API
+	 * state that androidx round-trips. */
+	private boolean atl_keyboard_navigation_cluster = false;
 
-	public void setKeyboardNavigationCluster(boolean isCluster) {}
+	public void setKeyboardNavigationCluster(boolean isCluster) {
+		atl_keyboard_navigation_cluster = isCluster;
+	}
+
+	public final boolean isKeyboardNavigationCluster() {
+		return atl_keyboard_navigation_cluster;
+	}
 
 	/* Autofill ids (queue item 151): the old getter built a *fresh*
 	 * AutofillId on every call, so identity/equality comparisons apps
