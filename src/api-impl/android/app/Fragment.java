@@ -6,6 +6,10 @@ public class Fragment {
 
 	Activity activity;
 
+	/* AOSP's Fragment.mTag: set from FragmentTransaction.add(containerId,
+	 * fragment, tag); FragmentManager.findFragmentByTag searches it. */
+	String mTag;
+
 	public void onCreate(Bundle savedInstanceState) {
 	}
 
