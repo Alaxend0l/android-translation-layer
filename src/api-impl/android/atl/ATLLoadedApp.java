@@ -231,7 +231,12 @@ public final class ATLLoadedApp {
 		return activity;
 	}
 
-	public ComponentName startOrBindService(final Intent intent, final ServiceConnection serviceConnection) {
+	/* Resolves the service an intent names: either directly (component) or
+	 * through the manifest's intent filters, with the same priority rule
+	 * both callers used to duplicate (queue item 263: stopService only
+	 * understood an explicit component, so an action-only stopService was
+	 * refused even with the service running). */
+	private ComponentName resolveServiceComponent(Intent intent) {
 		ComponentName component = intent.getComponent();
 		if (component == null) {
 			int priority = Integer.MIN_VALUE;
@@ -247,6 +252,11 @@ public final class ATLLoadedApp {
 				}
 			}
 		}
+		return component;
+	}
+
+	public ComponentName startOrBindService(final Intent intent, final ServiceConnection serviceConnection) {
+		ComponentName component = resolveServiceComponent(intent);
 		if (component == null) {
 			Slog.w(TAG, "startService: no matching service found for intent: " + intent);
 			return null;
@@ -283,9 +293,13 @@ public final class ATLLoadedApp {
 	}
 
 	public boolean stopService(Intent intent) {
-		if (intent.getComponent() == null)
+		/* queue item 263: resolve the way start/bindService does, so an
+		 * action-only stopService reaches the running instance instead of
+		 * being refused for want of a component. */
+		ComponentName component = resolveServiceComponent(intent);
+		if (component == null)
 			return false;
-		String className = intent.getComponent().getClassName();
+		String className = component.getClassName();
 		Service service = running_services.get(className);
 		if (service == null)
 			return false;
