@@ -713,7 +713,12 @@ public class View implements Drawable.Callback {
 	}
 
 	public interface OnSystemUiVisibilityChangeListener {
-		// TODO
+		/* AOSP's shape (queue item 277) — apps implement this interface,
+		 * it had been a TODO stub here. Fires when the system bars'
+		 * visibility changes; ATL has no system bars (noted at
+		 * setSystemUiVisibility), so it can never fire — see
+		 * setOnSystemUiVisibilityChangeListener. */
+		void onSystemUiVisibilityChange(int visibility);
 	}
 
 	public static interface OnKeyListener {
@@ -1403,7 +1408,17 @@ public class View implements Drawable.Callback {
 		on_scroll_change_listener = l;
 	}
 
-	public /*native*/ void setOnSystemUiVisibilityChangeListener(OnSystemUiVisibilityChangeListener l) {}
+	/* System-UI visibility listener (queue item 277): AOSP stores it in
+	 * its ListenerInfo and fires it whenever the system bars' visibility
+	 * changes. ATL has no system bars (noted at setSystemUiVisibility),
+	 * so the visibility is always 0 and can never change — the listener
+	 * is kept as real API state (callers and androidx read listener pairs
+	 * back), with nothing that could fire it. */
+	private OnSystemUiVisibilityChangeListener on_system_ui_visibility_listener = null;
+
+	public void setOnSystemUiVisibilityChangeListener(OnSystemUiVisibilityChangeListener l) {
+		on_system_ui_visibility_listener = l;
+	}
 	public final int getWidth() {
 		return right - left;
 	}
@@ -3249,7 +3264,18 @@ public class View implements Drawable.Callback {
 		return atl_state_list_animator;
 	}
 
-	public void requestFitSystemWindows() {}
+	public void requestFitSystemWindows() {
+		/* AOSP (queue item 278) walks this up the parent chain
+		 * (ViewGroup.requestFitSystemWindows) to the view root, whose
+		 * ViewRootImpl then schedules an insets re-dispatch — which is
+		 * exactly what AOSP's requestApplyInsets does with it
+		 * (requestApplyInsets calls requestFitSystemWindows). The fork
+		 * has no ViewRootImpl or fit-system-windows flag plumbing, but
+		 * its requestApplyInsets really re-runs the insets chain
+		 * (queue item 128), so route to that: the observable effect is
+		 * kept, the internal propagation detail is what ATL lacks. */
+		requestApplyInsets();
+	}
 
 	public native void getWindowVisibleDisplayFrame(Rect rect);
 
