@@ -3354,7 +3354,18 @@ public class View implements Drawable.Callback {
 
 	public void setTouchDelegate(TouchDelegate touchDelegate) {}
 
-	public void setOnDragListener(OnDragListener onDragListener) {}
+	/* Drag and drop (queue item 221): the listener is stored now, but
+	 * nothing can call it: the fork's OnDragListener is an empty marker
+	 * interface (no onDrag signature) and there is no DragEvent class and
+	 * no dispatchDragEvent path — ATL receives no GTK DnD feed either.
+	 * **Gap: drag & drop subsystem** (DragEvent, ClipDescription, the
+	 * dispatch chain and a GTK DnD source). Storing alone is what AOSP's
+	 * setter guarantees; the callback contract needs the subsystem. */
+	private OnDragListener on_drag_listener = null;
+
+	public void setOnDragListener(OnDragListener onDragListener) {
+		on_drag_listener = onDragListener;
+	}
 
 	public void setTransitionName(String transitionName) {
 		/* Transition name (queue item 203): AOSP keeps it (setTransitionName
@@ -3511,6 +3522,15 @@ public class View implements Drawable.Callback {
 		layout(left, top, right, bottom);
 	}
 
+	/* Camera distance (queue item 222): AOSP pushes it into the view's
+	 * RenderNode (normalised by display density) and the getter reads it
+	 * back scaled by density; it only ever matters when the node is
+	 * drawn with rotationX/rotationY. ATL has no RenderNode and consumes
+	 * none of the 3-D view properties (rotationX/rotationY are stored but
+	 * nothing composites them — rendering gap), so there is nowhere to
+	 * keep or apply this. Returning 0 matches a view whose perspective is
+	 * never used; recorded rather than inventing a scale that draws
+	 * nothing. */
 	public void setCameraDistance(float distance) {}
 
 	/* Scroll-into-view request (queue items 167, 168): AOSP walks the
@@ -3988,6 +4008,8 @@ public class View implements Drawable.Callback {
 
 	public boolean isAccessibilityFocused() { return false; }
 
+	/* queue item 222: see setCameraDistance above (no RenderNode, no 3-D
+	 * compositing in ATL). */
 	public float getCameraDistance() { return 0; }
 
 	public OnFocusChangeListener getOnFocusChangeListener() {
