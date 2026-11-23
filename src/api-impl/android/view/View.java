@@ -3013,7 +3013,9 @@ public class View implements Drawable.Callback {
 		return background_tint_list;
 	}
 
-	public PorterDuff.Mode getBackgroundTintMode() { return null; }
+	public PorterDuff.Mode getBackgroundTintMode() {
+		return background_tint_mode;
+	}
 
 	public String getTransitionName() { return null; }
 
@@ -3261,7 +3263,13 @@ public class View implements Drawable.Callback {
 
 	public boolean isDuplicateParentStateEnabled() { return duplicateParentState; }
 
-	public void setBackgroundTintMode(PorterDuff.Mode tintMode) {}
+	/* Same tint family as setBackgroundTintList above (queue item 163):
+	 * mode stored and read back; the gsk draw path applies neither yet. */
+	private PorterDuff.Mode background_tint_mode = null;
+
+	public void setBackgroundTintMode(PorterDuff.Mode tintMode) {
+		background_tint_mode = tintMode;
+	}
 
 	public void setNextFocusLeftId(int id) {}
 
