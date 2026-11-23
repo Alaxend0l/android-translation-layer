@@ -757,7 +757,14 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 		return false;
 	}
 
-	public void setTaskDescription(ActivityManager.TaskDescription description) {}
+	public void setTaskDescription(ActivityManager.TaskDescription description) {
+		/* AOSP hands the label/icon/colors to the window manager for this
+		 * activity's *task* entry (what the recents screen shows) —
+		 * ActivityTaskManager.setTaskDescription (queue item 259). ATL has
+		 * no task concept: there is no recents list or task host to label;
+		 * the only visible label is the window title, which setTitle sets
+		 * directly. Nothing to attach this to. */
+	}
 
 	private native void nativeFinish(long native_window);
 	public static native void nativeStartActivity(Activity activity);

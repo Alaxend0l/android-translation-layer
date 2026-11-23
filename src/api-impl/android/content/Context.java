@@ -581,9 +581,19 @@ public abstract class Context {
 
 	public abstract Context createPackageContext(String packageName, int flags);
 
-	public void grantUriPermission(String dummy, Uri dummy2, int dummy3) {
-		System.out.println("grantUriPermission(" + dummy + ", " + dummy2 + ", " + dummy3 + ") called");
-	}
+	/* URI permissions (queue item 262): AOSP records a grant in the
+	 * system's UriPermissionsManager so *another package* can read the
+	 * URI through the ContentProvider path. ATL runs one app per process
+	 * and its ContentResolver does not check URI permissions at all (no
+	 * cross-provider access control exists here — the same reason
+	 * checkPermission grants sandbox-wide), so there is nothing a grant
+	 * could unlock and nothing a revoke could take away. **Gap: URI
+	 * permission enforcement** — until provider access is checked,
+	 * recording grants would be bookkeeping with no effect. Not logged on
+	 * every call either: these fire constantly in provider-heavy apps. */
+	public void grantUriPermission(String toPackage, Uri uri, int modeFlags) {}
+
+	public void revokeUriPermission(Uri uri, int modeFlags) {}
 
 	public static final int MODE_ENABLE_WRITE_AHEAD_LOGGING = 0x0008;
 	public static final int MODE_NO_LOCALIZED_COLLATORS = 0x0010;
@@ -632,11 +642,12 @@ public abstract class Context {
 		return list != null ? list : new String[0];
 	}
 
-	public void revokeUriPermission(Uri uri, int mode) {
-		System.out.println("revokeUriPermission(" + uri + ", " + mode + ") called");
-	}
-
 	public String getAttributionTag() {
+		/* AOSP's Context default is literally null (queue item 261) — a
+		 * non-null tag only comes from a context created with
+		 * ContextParams/CreateContextParams or the manifest's <attribution>,
+		 * none of which exist in ATL (no context-creation params API). So
+		 * null is the answer AOSP itself gives here, not dropped state. */
 		return null;
 	}
 	public abstract boolean isDeviceProtectedStorage();

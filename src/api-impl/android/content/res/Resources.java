@@ -807,7 +807,18 @@ public class Resources {
 	 * @throws NotFoundException Throws NotFoundException if the given ID does not exist.
 	 *
 	 */
-	public Movie getMovie(int id) throws NotFoundException { /*
+	public Movie getMovie(int id) throws NotFoundException {
+		/* Movie (queue item 255): AOSP's body is the commented-out code
+		 * below — openRawResource + Movie.decodeStream — and
+		 * Movie.decodeStream returns **null** for data that is not an
+		 * animated GIF. ATL has no Movie class to decode with (the
+		 * placeholder `Movie` in this file only keeps the signature
+		 * compiling) and no GIF decoder, so null is exactly AOSP's
+		 * answer for anything ATL could be handed. The gap is the other
+		 * case — a real animated GIF, where AOSP would return a decoded
+		 * Movie: **gap: android.graphics.Movie / GIF decoding** (an API
+		 * deprecated upstream since API 28). */
+		/*
 	     InputStream is = openRawResource(id);
 	     Movie movie = Movie.decodeStream(is);
 	     try {
