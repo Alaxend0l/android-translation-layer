@@ -58,6 +58,22 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	public Intent intent;
 	private Activity resultActivity;
 	private int resultRequestCode;
+	/* Whether this activity's result for its caller has been dispatched
+	 * (queue item 301): AOSP stores the result and delivers it exactly
+	 * once when the activity finishes; without this guard a parent's
+	 * finishActivity(requestCode) could cancel on a child that had
+	 * already reported its result. */
+	private boolean atl_result_delivered = false;
+
+	/* Activities started for a result by this activity, keyed by request
+	 * code (queue item 301): AOSP's finishActivity(requestCode) asks the
+	 * activity manager to finish the activity started for that code;
+	 * ATL creates those children right here (startActivityForResult), so
+	 * the mapping lives on the caller — where the activity manager would
+	 * keep it. Entries stay after the child finishes (the child was
+	 * already retained through resultActivity); finish() and the result
+	 * dispatch are guarded, so repeat calls stay harmless. */
+	private HashMap<Integer, Activity> atl_started_for_result = null;
 	private boolean paused = false;
 	private CharSequence title = null;
 	List<Fragment> fragments = new ArrayList<>();
@@ -422,6 +438,9 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 				final Activity activity = internalCreateActivity(intent.getComponent().getClassName(), getWindow().native_window, intent);
 				activity.resultRequestCode = requestCode;
 				activity.resultActivity = this;
+				if (atl_started_for_result == null)
+					atl_started_for_result = new HashMap<Integer, Activity>();
+				atl_started_for_result.put(requestCode, activity);
 				runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
@@ -458,7 +477,8 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public void setResult(int resultCode, Intent data) {
-		if (resultActivity != null) {
+		if (resultActivity != null && !atl_result_delivered) {
+			atl_result_delivered = true;
 			resultActivity.onActivityResult(resultRequestCode, resultCode, data);
 		}
 	}
@@ -1028,8 +1048,26 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	}
 
 	public void finishActivity(int requestCode) {
-		/* TODO: track started activities so we can finish the right one here */
-		Slog.w(TAG, "finishActivity: stub");
+		/* AOSP asks the activity manager to finish the activity this one
+		 * started with startActivityForResult(requestCode)
+		 * (Activity.finishActivity -> IActivityManager.finishActivity);
+		 * when the child had not set its own result, this activity
+		 * receives RESULT_CANCELED in onActivityResult. ATL has no
+		 * activity manager, but the children are created in this file:
+		 * startActivityForResult registers them above, so this lookup
+		 * matches AOSP's by request code. An unknown code is a no-op in
+		 * AOSP too (nothing to finish). The cancel Intent follows the
+		 * fork's existing RESULT_CANCELED paths (startActivityForResult
+		 * passes a fresh Intent, not null). */
+		Activity child = atl_started_for_result == null
+			? null : atl_started_for_result.get(requestCode);
+		if (child == null)
+			return;
+		child.finish();
+		if (!child.atl_result_delivered) {
+			child.atl_result_delivered = true;
+			onActivityResult(requestCode, RESULT_CANCELED, new Intent());
+		}
 	}
 
 	public void finishAfterTransition() {
