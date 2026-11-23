@@ -41,6 +41,7 @@ void wrapper_widget_set_layout_params(WrapperWidget *wrapper, int width, int hei
 void wrapper_widget_set_background(WrapperWidget *wrapper, GdkPaintable *paintable);
 void wrapper_widget_consume_touch_events(WrapperWidget *wrapper);
 void wrapper_widget_register_invalidation_listener(WrapperWidget *wrapper);
+void wrapper_widget_install_media_key_controller(GtkWidget *window);
 
 void _setOnTouchListener(JNIEnv *env, jobject this, GtkWidget *widget);
 

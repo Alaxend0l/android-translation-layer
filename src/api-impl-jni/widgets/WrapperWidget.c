@@ -303,6 +303,17 @@ static bool on_click(GtkGestureClick *gesture, int n_press, double x, double y, 
 #define KEYCODE_INSERT        124
 #define KEYCODE_F1            131 /* KEYCODE_F[2-12] = [132-142] */
 #define KEYCODE_NUMPAD_0      144 /* KEYCODE_NUMPAD_[1-9] = [145-153] */
+#define KEYCODE_VOLUME_UP     24
+#define KEYCODE_VOLUME_DOWN   25
+#define KEYCODE_MEDIA_PLAY_PAUSE 85
+#define KEYCODE_MEDIA_STOP    86
+#define KEYCODE_MEDIA_NEXT    87
+#define KEYCODE_MEDIA_PREVIOUS 88
+#define KEYCODE_MEDIA_REWIND  89
+#define KEYCODE_MEDIA_FAST_FORWARD 90
+#define KEYCODE_MEDIA_PLAY    126
+#define KEYCODE_MEDIA_PAUSE   127
+#define KEYCODE_VOLUME_MUTE   164
 
 static int map_key_code(int key_code)
 {
@@ -373,8 +384,53 @@ static int map_key_code(int key_code)
 			return KEYCODE_MOVE_END;
 		case GDK_KEY_Insert:
 			return KEYCODE_INSERT;
+		/* Media transport keysyms (X11 XF86Audio*, named GDK_KEY_Audio* in
+		 * GTK4). On Android these are hardware keys: the system's
+		 * PhoneWindowManager consumes them and routes them to media
+		 * sessions (see MediaSession.atlDispatchMediaKey). The X keysym
+		 * XF86AudioPlay corresponds to Linux KEY_PLAYPAUSE, i.e. the
+		 * toggle key, hence KEYCODE_MEDIA_PLAY_PAUSE. Volume keys are
+		 * mapped here but not intercepted: making them change the actual
+		 * output volume is a separate issue. */
+		case GDK_KEY_AudioPlay:
+			return KEYCODE_MEDIA_PLAY_PAUSE;
+		case GDK_KEY_AudioPause:
+			return KEYCODE_MEDIA_PAUSE;
+		case GDK_KEY_AudioStop:
+			return KEYCODE_MEDIA_STOP;
+		case GDK_KEY_AudioNext:
+			return KEYCODE_MEDIA_NEXT;
+		case GDK_KEY_AudioPrev:
+			return KEYCODE_MEDIA_PREVIOUS;
+		case GDK_KEY_AudioRewind:
+			return KEYCODE_MEDIA_REWIND;
+		case GDK_KEY_AudioForward:
+			return KEYCODE_MEDIA_FAST_FORWARD;
+		case GDK_KEY_AudioRaiseVolume:
+			return KEYCODE_VOLUME_UP;
+		case GDK_KEY_AudioLowerVolume:
+			return KEYCODE_VOLUME_DOWN;
+		case GDK_KEY_AudioMute:
+			return KEYCODE_VOLUME_MUTE;
 		default:
 			return key_code;
+	}
+}
+
+static gboolean is_media_transport_key(int key_code)
+{
+	switch (key_code) {
+	case KEYCODE_MEDIA_PLAY_PAUSE:
+	case KEYCODE_MEDIA_PLAY:
+	case KEYCODE_MEDIA_PAUSE:
+	case KEYCODE_MEDIA_STOP:
+	case KEYCODE_MEDIA_NEXT:
+	case KEYCODE_MEDIA_PREVIOUS:
+	case KEYCODE_MEDIA_REWIND:
+	case KEYCODE_MEDIA_FAST_FORWARD:
+		return TRUE;
+	default:
+		return FALSE;
 	}
 }
 
@@ -403,11 +459,24 @@ static int map_meta_state(GdkModifierType state)
 #define ACTION_DOWN 0
 #define ACTION_UP   1
 
+/* Key code of the last media transport key whose press was consumed by
+ * a media session, so the matching release is consumed too (0 = none). */
+static int consumed_media_key_code = 0;
+
+static gboolean dispatch_media_key(JNIEnv *env, int action, int key_code)
+{
+	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, action, key_code, 0, 0);
+	gboolean handled = J__MediaSession__atlDispatchMediaKey(env, key_event);
+	ATL_CALLBACK_CHECK(env);
+	return handled;
+}
+
 static gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, WrapperWidget *wrapper)
 {
 	JNIEnv *env = get_jni_env();
+	int key_code = map_key_code(keyval);
 
-	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, ACTION_DOWN, map_key_code(keyval), 0, map_meta_state(state));
+	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, ACTION_DOWN, key_code, 0, map_meta_state(state));
 	_SET_INT_FIELD(key_event, "unicodeValue", gdk_keyval_to_unicode(keyval));
 	gboolean ret = J__View__dispatchKeyEvent(env, wrapper->jobj, key_event);
 	ATL_CALLBACK_CHECK(env);
@@ -417,12 +486,52 @@ static gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, 
 static gboolean on_key_released(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, WrapperWidget *wrapper)
 {
 	JNIEnv *env = get_jni_env();
+	int key_code = map_key_code(keyval);
 
-	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, ACTION_UP, map_key_code(keyval), 0, map_meta_state(state));
+	jobject key_event = J_new__KeyEvent(env, (jlong)0, (jlong)0, ACTION_UP, key_code, 0, map_meta_state(state));
 	_SET_INT_FIELD(key_event, "unicodeValue", gdk_keyval_to_unicode(keyval));
 	gboolean ret = J__View__dispatchKeyEvent(env, wrapper->jobj, key_event);
 	ATL_CALLBACK_CHECK(env);
 	return ret;
+}
+
+/* Media transport keys on Android are consumed by the system server
+ * (PhoneWindowManager) and routed to media sessions - they never depend
+ * on which view has focus. ATL's per-view key controllers only fire along
+ * a focus path (and many apps, Compose ones especially, leave the window
+ * with no focus widget), so media keys are intercepted at the window
+ * itself, in the capture phase: that controller runs before any widget's,
+ * no matter the focus state. */
+static gboolean on_window_media_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data)
+{
+	int key_code = map_key_code(keyval);
+	if (!is_media_transport_key(key_code))
+		return FALSE;
+	JNIEnv *env = get_jni_env();
+	gboolean handled = dispatch_media_key(env, ACTION_DOWN, key_code);
+	if (handled)
+		consumed_media_key_code = key_code;
+	return handled;
+}
+
+static gboolean on_window_media_key_released(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data)
+{
+	int key_code = map_key_code(keyval);
+	if (!is_media_transport_key(key_code) || consumed_media_key_code != key_code)
+		return FALSE;
+	JNIEnv *env = get_jni_env();
+	dispatch_media_key(env, ACTION_UP, key_code);
+	consumed_media_key_code = 0;
+	return TRUE;
+}
+
+void wrapper_widget_install_media_key_controller(GtkWidget *window)
+{
+	GtkEventController *controller = gtk_event_controller_key_new();
+	gtk_event_controller_set_propagation_phase(controller, GTK_PHASE_CAPTURE);
+	g_signal_connect(controller, "key-pressed", G_CALLBACK(on_window_media_key_pressed), NULL);
+	g_signal_connect(controller, "key-released", G_CALLBACK(on_window_media_key_released), NULL);
+	gtk_widget_add_controller(window, controller);
 }
 
 GtkWidget *currently_unmapping = NULL;

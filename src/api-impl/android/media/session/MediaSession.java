@@ -13,11 +13,30 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
+import android.view.KeyEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MediaSession {
 
 	private List<QueueItem> queue;
+
+	/* ATL has no system-server MediaSessionService (AOSP routes media
+	 * buttons there, see PhoneWindowManager), so live sessions register
+	 * here and atlDispatchMediaKey delivers to them in-process. ATL runs
+	 * one app per process, so the sessions a process can see are exactly
+	 * its own. */
+	private static final ArrayList<MediaSession> atlSessions = new ArrayList<>();
+
+	/* AOSP PlaybackState.STATE_PLAYING / STATE_BUFFERING (the class in
+	 * api-impl has no state constants to reference; AOSP values are
+	 * NONE=0 STOPPED=1 PAUSED=2 PLAYING=3 BUFFERING=4 ERROR=5
+	 * CONNECTING=6). */
+	private static final int ATL_STATE_PLAYING = 3;
+	private static final int ATL_STATE_BUFFERING = 4;
+
+	private Callback callback;
+	private PlaybackState lastPlaybackState;
 
 	public static final class Token {}
 
@@ -31,7 +50,11 @@ public class MediaSession {
 		}
 	}
 
-	public MediaSession(Context context, String tag) {}
+	public MediaSession(Context context, String tag) {
+		synchronized (atlSessions) {
+			atlSessions.add(this);
+		}
+	}
 
 	public Token getSessionToken() {
 		return new Token();
@@ -40,10 +63,12 @@ public class MediaSession {
 	public void setFlags(int flags) {}
 
 	public void setCallback(Callback callback, Handler handler) {
+		this.callback = callback;
 		nativeSetCallback(callback);
 	}
 
 	public void setCallback(Callback callback) {
+		this.callback = callback;
 		nativeSetCallback(callback);
 	}
 
@@ -52,6 +77,7 @@ public class MediaSession {
 	public void setActive(boolean active) {}
 
 	public void setPlaybackState(PlaybackState state) {
+		lastPlaybackState = state;
 		String title = null;
 		String subTitle = null;
 		String artUrl = null;
@@ -73,7 +99,61 @@ public class MediaSession {
 		this.queue = queue;
 	}
 
-	public void release() {}
+	public void release() {
+		synchronized (atlSessions) {
+			atlSessions.remove(this);
+		}
+	}
+
+	/**
+	 * ATL-internal entry for media-transport key codes (mapped from the
+	 * host's XF86Audio* keysyms in WrapperWidget.c). AOSP consumes those
+	 * keys in the system server and feeds MediaSessionManager.
+	 * dispatchMediaKeyEvent(); ATL routes the equivalent MEDIA_BUTTON
+	 * intent straight to this process's live sessions. WrapperWidget.c
+	 * consumes the key when this returns true (AOSP consumes these keys
+	 * in the system server); with no session holding it the key falls
+	 * through to the view tree, which on a desktop host is friendlier
+	 * than dropping it. Returns whether any session handled it.
+	 */
+	@Export
+	public static boolean atlDispatchMediaKey(KeyEvent event) {
+		ArrayList<MediaSession> snapshot;
+		synchronized (atlSessions) {
+			if (atlSessions.isEmpty())
+				return false;
+			snapshot = new ArrayList<>(atlSessions);
+		}
+		boolean handled = false;
+		for (MediaSession session : snapshot) {
+			if (session.callback == null)
+				continue;
+			int keyCode = event.getKeyCode();
+			/* AOSP's Callback default expands KEYCODE_MEDIA_PLAY_PAUSE
+			 * using the session's playback state; do it per session so
+			 * the nested Callback (static in AOSP) needs no outer state. */
+			if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+				boolean playing = session.lastPlaybackState != null
+					&& (session.lastPlaybackState.state == ATL_STATE_PLAYING
+					    || session.lastPlaybackState.state == ATL_STATE_BUFFERING);
+				keyCode = playing ? KeyEvent.KEYCODE_MEDIA_PAUSE : KeyEvent.KEYCODE_MEDIA_PLAY;
+			}
+			Intent intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+			intent.putExtra(Intent.EXTRA_KEY_EVENT,
+				new KeyEvent(event.getAction(), keyCode));
+			boolean step = session.callback.onMediaButtonEvent(intent);
+			System.out.println("atlDispatchMediaKey: action=" + event.getAction()
+				+ " origKey=" + event.getKeyCode() + " sentKey=" + keyCode
+				+ " lastState=" + (session.lastPlaybackState == null ? -1 : session.lastPlaybackState.state)
+				+ " handled=" + step);
+			if (step)
+				handled = true;
+		}
+		/* AOSP posts the callback on the handler passed to setCallback;
+		 * ATL calls it inline on the input thread (single app process,
+		 * same process that owns the session). */
+		return handled;
+	}
 
 	public void setPlaybackToLocal(AudioAttributes audioAttributes) {}
 
@@ -109,7 +189,44 @@ public class MediaSession {
 
 		public void onCommand(@NonNull String command, @Nullable Bundle args, @Nullable ResultReceiver cb) {}
 
-		public boolean onMediaButtonEvent(@NonNull Intent mediaButtonIntent) { return false; }
+		/**
+		 * AOSP's default implementation translates the standard media
+		 * key codes into the matching onXxx() callbacks (AOSP
+		 * MediaSession.Callback.onMediaButtonEvent); apps that do not
+		 * override it — androidx.media3's MediaSessionStub among them —
+		 * rely on exactly this behaviour. KEYCODE_MEDIA_PLAY_PAUSE was
+		 * already expanded to PLAY/PAUSE by atlDispatchMediaKey.
+		 */
+		public boolean onMediaButtonEvent(@NonNull Intent mediaButtonIntent) {
+			KeyEvent event = (KeyEvent) mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+			if (event == null || event.getAction() != KeyEvent.ACTION_DOWN)
+				return false;
+			switch (event.getKeyCode()) {
+			case KeyEvent.KEYCODE_MEDIA_PLAY:
+				onPlay();
+				return true;
+			case KeyEvent.KEYCODE_MEDIA_PAUSE:
+				onPause();
+				return true;
+			case KeyEvent.KEYCODE_MEDIA_NEXT:
+				onSkipToNext();
+				return true;
+			case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+				onSkipToPrevious();
+				return true;
+			case KeyEvent.KEYCODE_MEDIA_STOP:
+				onStop();
+				return true;
+			case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+				onFastForward();
+				return true;
+			case KeyEvent.KEYCODE_MEDIA_REWIND:
+				onRewind();
+				return true;
+			default:
+				return false;
+			}
+		}
 
 		public void onPrepare() {}
 

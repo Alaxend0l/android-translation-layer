@@ -10,6 +10,7 @@
 #include "../api-impl-jni/util.h"
 #include "../api-impl-jni/app/android_app_Activity.h"
 #include "../api-impl-jni/content/android_content_Context.h"
+#include "../api-impl-jni/widgets/WrapperWidget.h"
 
 #include "actions.h"
 #include "back_button.h"
@@ -468,6 +469,10 @@ static void open(GtkApplication *app, GFile **files, gint nfiles, const gchar *h
 	/* -- misc -- */
 
 	window = gtk_application_window_new(app);
+	/* Media transport keys (KEYCODE_MEDIA_*) are system-level input on
+	 * Android; intercept them at the window so they reach the app's
+	 * media sessions no matter which view (if any) has focus. */
+	wrapper_widget_install_media_key_controller(window);
 	GtkWidget *stack = gtk_stack_new();
 	gtk_stack_set_transition_type(GTK_STACK(stack), GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
 	gtk_window_set_child(GTK_WINDOW(window), stack);
