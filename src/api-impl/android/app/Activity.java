@@ -831,7 +831,17 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	 * Window.Callback pair. In AOSP these forward to mDefaultKeySrv, the
 	 * legacy default key service, which is null unless the app used
 	 * getDefaultKeyDialog - i.e. the effective framework default is
-	 * false (unhandled) and apps override these. */
+	 * false (unhandled) and apps override these.
+	 * AOSP's Activity.onKeyDown/onKeyUp also carry the legacy BACK and
+	 * ESCAPE handling (queue items 166, 176): startTracking() on the way
+	 * down and onBackPressed() on a tracked, uncancelled key up. ATL does
+	 * not need that path and must not duplicate it: the desktop back
+	 * action is delivered by api-impl-jni/app/android_app_Activity.c
+	 * (current_activity_back_pressed -> onBackPressed) rather than as a
+	 * KEYCODE_BACK KeyEvent, and the DEFAULT_KEYS_* half of onKeyDown
+	 * needs the window panel shortcuts (Window.performPanelShortcut)
+	 * that ATL does not implement. Recorded with the key-input gaps
+	 * rather than half-implemented. */
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		return false;
 	}

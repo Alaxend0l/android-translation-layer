@@ -3217,6 +3217,17 @@ public class View implements Drawable.Callback {
 	public boolean requestRectangleOnScreen(Rect rectangle) { return false; }
 
 	@Export
+	/* AOSP's confirm-key (ENTER/DPAD_CENTER) handling presses the view
+	 * and, with the key-up half in dispatchKeyEvent, performs the click
+	 * (queue item 178). ATL cannot do that honestly today: the
+	 * dispatchKeyEvent above only handles ACTION_DOWN and drops the up
+	 * event, and the fork has no checkForLongClick/press-target
+	 * machinery, so pressing without releasing would leave views stuck
+	 * pressed and still never click. Keyboard activation of views is
+	 * therefore recorded as its own input gap (key events reach ATL's
+	 * focused widget via api-impl-jni/widgets/WrapperWidget.c); the
+	 * fork's false = "not handled" is what an unclickable AOSP view
+	 * returns. */
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		return false;
 	}
