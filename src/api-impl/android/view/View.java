@@ -709,7 +709,9 @@ public class View implements Drawable.Callback {
 	}
 
 	public interface OnGenericMotionListener {
-		// TODO
+		/* AOSP's shape (queue item 295) — apps implement this interface,
+		 * it had been a TODO stub with no method here. */
+		boolean onGenericMotion(View v, MotionEvent event);
 	}
 
 	public interface OnSystemUiVisibilityChangeListener {
@@ -1879,7 +1881,18 @@ public class View implements Drawable.Callback {
 		});
 	}
 
-	public void setOnGenericMotionListener(View.OnGenericMotionListener l) {}
+	/* Generic-motion listener (queue item 295): AOSP stores it in its
+	 * ListenerInfo and dispatchGenericMotionEvent calls it before the
+	 * onGenericMotionEvent fallback. Observable here: ATL's GTK scroll
+	 * controller feeds real scroll/gesture events through
+	 * dispatchGenericMotionEvent (api-impl-jni/views/android_view_View.c),
+	 * so an app that registered a listener via this setter previously got
+	 * nothing and now gets AOSP's order. */
+	private OnGenericMotionListener on_generic_motion_listener = null;
+
+	public void setOnGenericMotionListener(View.OnGenericMotionListener l) {
+		on_generic_motion_listener = l;
+	}
 
 	/* AOSP returns the window's token, shared by every view in it; an ATL
 	 * process has one window, so one token for all views (InputMethodManager
@@ -2500,7 +2513,20 @@ public class View implements Drawable.Callback {
 
 	@Export
 	public boolean dispatchGenericMotionEvent(MotionEvent event) {
-		return onGenericMotionEvent(event);
+		/* AOSP's order (queue item 295): the OnGenericMotionListener set
+		 * through setOnGenericMotionListener first, then the
+		 * onGenericMotionEvent override as fallback. The listener half
+		 * was missing, so listeners registered through the setter never
+		 * fired although GTK's scroll controller calls this method with
+		 * real ACTION_SCROLL events. */
+		if (on_generic_motion_listener != null
+				&& on_generic_motion_listener.onGenericMotion(this, event)) {
+			return true;
+		}
+		if (onGenericMotionEvent(event)) {
+			return true;
+		}
+		return false;
 	}
 
 	/* Scrollbars (queue item 202): AOSP's returns true when it started a
