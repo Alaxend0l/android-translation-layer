@@ -1259,6 +1259,9 @@ public class View implements Drawable.Callback {
 
 	@Export
 	public void draw(Canvas canvas) {
+		/* queue item 257: AOSP clears its dirty flags as the view draws;
+		 * this is ATL's draw entry (called from GTK's draw pass). */
+		atl_dirty = false;
 		if (canvas instanceof GskCanvas)
 			native_drawBackground(widget, ((GskCanvas)canvas).snapshot);
 		onDraw(canvas);
@@ -1545,7 +1548,23 @@ public class View implements Drawable.Callback {
 		dispatchSetPressed(pressed);
 	}
 
-	protected void dispatchSetPressed(boolean pressed) {}
+	/* The overridable hook AOSP's setPressed() calls (ViewGroup overrides
+	 * it to propagate, and the fork's ViewGroup already does). AOSP's own
+	 * body re-applies the flag, refreshes the drawable state and
+	 * invalidates — that last part was missing here, so a pressed state
+	 * changed Android-side state without ever scheduling the repaint that
+	 * shows it (queue item 260). A subclass that overrides this and calls
+	 * super now gets AOSP's behaviour, which setPressed alone did not
+	 * provide. */
+	protected void dispatchSetPressed(boolean pressed) {
+		if (pressed) {
+			privateFlags |= PFLAG_PRESSED;
+		} else {
+			privateFlags &= ~PFLAG_PRESSED;
+		}
+		refreshDrawableState();
+		invalidate();
+	}
 
 	public boolean isPressed() {
 		return (privateFlags & PFLAG_PRESSED) == PFLAG_PRESSED;
@@ -1668,6 +1687,9 @@ public class View implements Drawable.Callback {
 	// called from native code for GTK widgets or from invalidate() for Java widgets
 	@Export
 	private void propagateInvalidation() {
+		/* queue item 257: this is the fork's invalidation funnel, so it is
+		 * where AOSP's PFLAG_DIRTY would be raised. */
+		atl_dirty = true;
 		for (View child = this; child.parent instanceof View; child = (View)child.parent)
 			child.parent.onDescendantInvalidated(child, this);
 	}
@@ -3741,7 +3763,18 @@ public class View implements Drawable.Callback {
 		}
 	}
 
-	public boolean isDirty() { return false; }
+	/* Dirty state (queue item 257): AOSP answers whether the view has
+	 * been invalidated and not yet redrawn (PFLAG_DIRTY_MASK). ATL really
+	 * does run Android's draw path for Java views (draw() below is called
+	 * from GTK's draw, see WrapperWidget.c), so there is a moment to
+	 * clear it: propagateInvalidation is the fork's single invalidation
+	 * funnel (invalidate() calls it and native code calls it for GTK
+	 * widgets), and draw() is the redraw. */
+	private boolean atl_dirty = false;
+
+	public boolean isDirty() {
+		return atl_dirty;
+	}
 
 	public float getX() {
 		return getLeft() + getTranslationX();
