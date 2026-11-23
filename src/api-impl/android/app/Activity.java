@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.util.Slog;
 import android.view.ContextMenu;
@@ -765,7 +766,27 @@ public class Activity extends ContextThemeWrapper implements Window.Callback, La
 	public boolean isVisible() {
 		return mVisible;
 	}
-	public Uri getReferrer() { return null; }
+	public Uri getReferrer() {
+		/* AOSP (queue item 256): an explicit EXTRA_REFERRER wins, then
+		 * EXTRA_REFERRER_NAME parsed, then android-app://<calling
+		 * package> when the caller is known, else null. ATL's known
+		 * caller is the one startActivityForResult recorded
+		 * (getCallingPackage above), so the fallback is reachable for
+		 * in-process launches. */
+		Intent intent = getIntent();
+		if (intent != null) {
+			Parcelable referrer = intent.getParcelableExtra(Intent.EXTRA_REFERRER);
+			if (referrer instanceof Uri)
+				return (Uri) referrer;
+			String referrerName = intent.getStringExtra(Intent.EXTRA_REFERRER_NAME);
+			if (referrerName != null)
+				return Uri.parse(referrerName);
+		}
+		String callingPackage = getCallingPackage();
+		if (callingPackage != null)
+			return new Uri.Builder().scheme("android-app").authority(callingPackage).build();
+		return null;
+	}
 	public void setDefaultKeyMode(int flag) {}
 	public void registerForContextMenu(View view) {
 		/* AOSP's body is literally this: the activity becomes the view's
