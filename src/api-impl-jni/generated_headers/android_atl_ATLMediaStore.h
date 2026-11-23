@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 #undef android_atl_ATLMediaStore_SCHEMA_VERSION
-#define android_atl_ATLMediaStore_SCHEMA_VERSION 2L
+#define android_atl_ATLMediaStore_SCHEMA_VERSION 3L
 #undef android_atl_ATLMediaStore_RESCAN_AFTER_MS
 #define android_atl_ATLMediaStore_RESCAN_AFTER_MS 10000LL
 #undef android_atl_ATLMediaStore_MEDIA_TYPE_NONE

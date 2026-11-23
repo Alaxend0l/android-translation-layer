@@ -41,6 +41,14 @@ JNIEXPORT jint JNICALL Java_android_media_AudioTrack_native_1getPlaybackHeadPosi
 
 /*
  * Class:     android_media_AudioTrack
+ * Method:    native_flush
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1flush
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     android_media_AudioTrack
  * Method:    native_play
  * Signature: ()V
  */
@@ -53,14 +61,6 @@ JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1play
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1pause
-  (JNIEnv *, jobject);
-
-/*
- * Class:     android_media_AudioTrack
- * Method:    native_flush
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_android_media_AudioTrack_native_1flush
   (JNIEnv *, jobject);
 
 /*

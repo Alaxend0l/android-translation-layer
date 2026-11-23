@@ -59,6 +59,14 @@ JNIEXPORT void JNICALL Java_android_graphics_Paint_native_1recycle
 
 /*
  * Class:     android_graphics_Paint
+ * Method:    native_set_shader
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_android_graphics_Paint_native_1set_1shader
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     android_graphics_Paint
  * Method:    native_set_color
  * Signature: (JI)V
  */

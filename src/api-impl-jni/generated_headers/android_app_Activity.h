@@ -9,6 +9,8 @@ extern "C" {
 #endif
 #undef android_app_Activity_MODE_PRIVATE
 #define android_app_Activity_MODE_PRIVATE 0L
+#undef android_app_Activity_MODE_APPEND
+#define android_app_Activity_MODE_APPEND 2L
 #undef android_app_Activity_CONTEXT_INCLUDE_CODE
 #define android_app_Activity_CONTEXT_INCLUDE_CODE 1L
 #undef android_app_Activity_CONTEXT_IGNORE_SECURITY
@@ -23,6 +25,16 @@ extern "C" {
 #define android_app_Activity_RESULT_CANCELED 0L
 #undef android_app_Activity_RESULT_OK
 #define android_app_Activity_RESULT_OK -1L
+#undef android_app_Activity_DEFAULT_KEYS_DISABLE
+#define android_app_Activity_DEFAULT_KEYS_DISABLE 0L
+#undef android_app_Activity_DEFAULT_KEYS_DIALER
+#define android_app_Activity_DEFAULT_KEYS_DIALER 1L
+#undef android_app_Activity_DEFAULT_KEYS_SHORTCUT
+#define android_app_Activity_DEFAULT_KEYS_SHORTCUT 2L
+#undef android_app_Activity_DEFAULT_KEYS_SEARCH_LOCAL
+#define android_app_Activity_DEFAULT_KEYS_SEARCH_LOCAL 3L
+#undef android_app_Activity_DEFAULT_KEYS_SEARCH_GLOBAL
+#define android_app_Activity_DEFAULT_KEYS_SEARCH_GLOBAL 4L
 /*
  * Class:     android_app_Activity
  * Method:    isTaskRoot

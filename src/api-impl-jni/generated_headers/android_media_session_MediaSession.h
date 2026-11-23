@@ -7,6 +7,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef android_media_session_MediaSession_ATL_STATE_PLAYING
+#define android_media_session_MediaSession_ATL_STATE_PLAYING 3L
+#undef android_media_session_MediaSession_ATL_STATE_BUFFERING
+#define android_media_session_MediaSession_ATL_STATE_BUFFERING 4L
+#undef android_media_session_MediaSession_ATL_STATE_BUFFERING_LEGACY
+#define android_media_session_MediaSession_ATL_STATE_BUFFERING_LEGACY 6L
 /*
  * Class:     android_media_session_MediaSession
  * Method:    nativeSetState
