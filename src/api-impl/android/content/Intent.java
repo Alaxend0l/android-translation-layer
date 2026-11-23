@@ -901,7 +901,27 @@ public class Intent implements Parcelable {
 	}
 
 	public int filterHashCode() {
-		return 0;
+		/* AOSP sums the hashes of everything an IntentFilter matches on
+		 * (queue item 280) — callers use it to bucket filter-equivalent
+		 * intents; the fork returned a constant 0, so every intent
+		 * collided in every such bucket. Ported against the fields this
+		 * Intent has: AOSP also hashes mIdentifier, which the fork does
+		 * not carry at all. */
+		int code = 0;
+		if (action != null)
+			code += action.hashCode();
+		if (data != null)
+			code += data.hashCode();
+		if (type != null)
+			code += type.hashCode();
+		if (packageName != null)
+			code += packageName.hashCode();
+		if (component != null)
+			code += component.hashCode();
+		Set<String> categories = getCategories();
+		if (categories != null)
+			code += categories.hashCode();
+		return code;
 	}
 
 	public static Intent parseIntent(Resources res, XmlPullParser parser, AttributeSet attrs) {
