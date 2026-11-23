@@ -840,7 +840,13 @@ public class Intent implements Parcelable {
 		}
 	}
 
-	public void setExtrasClassLoader(ClassLoader loader) {}
+	/* Bundle already carries its class loader (used when unparceling
+	 * extras); the Intent-level setter was empty and silently dropped
+	 * it (queue item 162). */
+	public void setExtrasClassLoader(ClassLoader loader) {
+		if (extras != null)
+			extras.setClassLoader(loader);
+	}
 
 	@Export
 	public Intent setClassName(Context packageContext, String className) {
