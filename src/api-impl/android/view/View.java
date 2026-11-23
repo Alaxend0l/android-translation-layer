@@ -1709,7 +1709,22 @@ public class View implements Drawable.Callback {
 	public void getHitRect(Rect outRect) {
 		outRect.set(left, top, right, bottom);
 	}
-	public final boolean getLocalVisibleRect(Rect r) { return false; }
+	public final boolean getLocalVisibleRect(Rect r) {
+		/* AOSP fills r with the visible portion of the view in the
+		 * view's own coordinates (its (0,0) is the view's top-left) and
+		 * answers whether anything is visible (queue item 224). ATL's
+		 * geometry source is native_getGlobalVisibleRect (the view's
+		 * corners in window space, see getGlobalVisibleRect below — it
+		 * does not clip against ancestors, an existing gap shared here);
+		 * in local space the unclipped answer is simply the view's own
+		 * bounds. */
+		if (!native_getGlobalVisibleRect(widget, r) || r.width() <= 0 || r.height() <= 0) {
+			r.setEmpty();
+			return false;
+		}
+		r.set(0, 0, getWidth(), getHeight());
+		return true;
+	}
 
 	@Export
 	public final int getScrollX() {
