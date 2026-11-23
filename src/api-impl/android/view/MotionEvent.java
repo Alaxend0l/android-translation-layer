@@ -3037,8 +3037,8 @@ public final class MotionEvent extends InputEvent {
 			throw new IllegalArgumentException("matrix must not be null");
 		}
 
-		/* The nativeTransform stub above does nothing, and the real
-		 * native is not part of this fork, so apply the matrix the way
+		/* AOSP's nativeTransform (core/jni/android_view_MotionEvent.cpp)
+		 * is not part of this fork, so apply the matrix here the way
 		 * AOSP does (libinput libs/input/Input.cpp MotionEvent::transform,
 		 * checked at android-7.1.0_r7; the JNI just hands over the matrix's
 		 * 9 values): points move with a perspective divide, window
